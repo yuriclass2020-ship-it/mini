@@ -23,7 +23,7 @@ import urllib.request
 # ──────────────────────────────────────────────
 # 상수 설정
 # ──────────────────────────────────────────────
-WINDOW_NAME = "벚꽃 잎 잡기"
+WINDOW_NAME = "Cherry Blossom Catcher"
 PETAL_COUNT_INITIAL = 5          # 초기 꽃잎 수
 PETAL_SPAWN_INTERVAL = 1.5       # 새 꽃잎 생성 간격 (초)
 PETAL_CATCH_RADIUS = 50          # 잡기 판정 반경 (px)
@@ -241,11 +241,11 @@ def draw_game_over(frame, score: int, missed: int):
 
     draw_text_with_shadow(frame, "GAME OVER", (w // 2 - 155, h // 2 - 80),
                           font_scale=2.2, color=(180, 80, 255), thickness=3)
-    draw_text_with_shadow(frame, f"최종 점수: {score}", (w // 2 - 110, h // 2),
+    draw_text_with_shadow(frame, f"Score: {score}", (w // 2 - 110, h // 2),
                           font_scale=1.4, color=COLOR_GOLD, thickness=2)
-    draw_text_with_shadow(frame, f"놓친 꽃잎: {missed}", (w // 2 - 110, h // 2 + 50),
+    draw_text_with_shadow(frame, f"Missed: {missed}", (w // 2 - 110, h // 2 + 50),
                           font_scale=1.1, color=(100, 160, 255), thickness=2)
-    draw_text_with_shadow(frame, "R: 다시 시작   Q: 종료", (w // 2 - 175, h // 2 + 110),
+    draw_text_with_shadow(frame, "R: Restart   Q: Quit", (w // 2 - 175, h // 2 + 110),
                           font_scale=0.9, color=COLOR_WHITE, thickness=1)
 
 
@@ -255,13 +255,13 @@ def draw_intro(frame):
     cv2.rectangle(overlay, (0, 0), (w, h), (20, 0, 40), -1)
     cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
 
-    draw_text_with_shadow(frame, "벚꽃 잎 잡기", (w // 2 - 160, h // 2 - 90),
+    draw_text_with_shadow(frame, "Cherry Blossom Catcher", (w // 2 - 230, h // 2 - 90),
                           font_scale=2.0, color=(200, 120, 255), thickness=3)
     lines = [
-        "손바닥을 카메라에 보여주세요",
-        "손을 움직여 떨어지는 벚꽃을 잡으세요",
+        "Show your palm to the camera",
+        "Move your hand to catch the petals!",
         "",
-        "SPACE: 시작   Q: 종료",
+        "SPACE: Start   Q: Quit",
     ]
     for i, line in enumerate(lines):
         draw_text_with_shadow(frame, line, (w // 2 - 230, h // 2 - 10 + i * 40),

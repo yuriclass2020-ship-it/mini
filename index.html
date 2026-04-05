@@ -69,7 +69,7 @@
   <div id="overlay">
     <h1>🌸 Cherry Blossom Catcher</h1>
     <p>Show your palm to the camera</p>
-    <p>Move your hand to catch falling petals!</p>
+    <p>or <b>touch &amp; drag</b> on mobile!</p>
     <button class="start-btn" id="startBtn">START</button>
     <div id="loading">Loading hand tracker...<br>please wait</div>
   </div>
@@ -319,12 +319,44 @@ function endGame() {
   document.getElementById('finalMiss').textContent  = `Missed: ${missed}`;
 }
 
+// ── 터치/마우스 폴백 ────────────────────────────
+function getCanvasPos(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (canvas.width  / rect.width),
+    y: (clientY - rect.top)  * (canvas.height / rect.height)
+  };
+}
+canvas.addEventListener('touchstart', e => {
+  if (state !== 'playing') return; e.preventDefault();
+  handCenters = Array.from(e.touches).map(t => getCanvasPos(t.clientX, t.clientY));
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  if (state !== 'playing') return; e.preventDefault();
+  handCenters = Array.from(e.touches).map(t => getCanvasPos(t.clientX, t.clientY));
+}, { passive: false });
+canvas.addEventListener('touchend', e => {
+  if (state !== 'playing') return;
+  handCenters = Array.from(e.touches).map(t => getCanvasPos(t.clientX, t.clientY));
+}, { passive: false });
+canvas.addEventListener('mousemove', e => {
+  if (state !== 'playing') return;
+  handCenters = [getCanvasPos(e.clientX, e.clientY)];
+});
+
 startBtn.addEventListener('click', () => {
   if (!handsReady) {
-    startBtn.style.display   = 'none';
-    loadingEl.style.display  = 'block';
-    const wait = setInterval(() => {
-      if (handsReady) { clearInterval(wait); startGame(); }
+    startBtn.style.display  = 'none';
+    loadingEl.style.display = 'block';
+    loadingEl.innerHTML     = 'Loading hand tracker...<br>please wait';
+    // 8초 후 터치 모드로 자동 시작
+    const timer = setTimeout(() => {
+      clearInterval(poll);
+      loadingEl.innerHTML = 'Starting in touch mode!<br>drag your finger to catch petals 👆';
+      setTimeout(startGame, 1200);
+    }, 8000);
+    const poll = setInterval(() => {
+      if (handsReady) { clearInterval(poll); clearTimeout(timer); startGame(); }
     }, 300);
   } else { startGame(); }
 });

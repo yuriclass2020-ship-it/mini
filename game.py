@@ -244,10 +244,12 @@ def draw_intro(frame):
 # 메인 게임 루프
 # ──────────────────────────────────────────────
 def run_game():
+    print("Starting game...")
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        print("웹캠을 열 수 없습니다. 웹캠이 연결되어 있는지 확인하세요.")
+        print("ERROR: Cannot open webcam.")
         return
+    print("Webcam opened.")
 
     # 카메라 해상도 설정
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -255,16 +257,19 @@ def run_game():
 
     ret, frame = cap.read()
     if not ret:
-        print("카메라 프레임을 읽을 수 없습니다.")
+        print("ERROR: Cannot read frame.")
         cap.release()
         return
+    print("Frame read OK.")
 
     frame = cv2.flip(frame, 1)
     h, w = frame.shape[:2]
 
     tracker = HandTracker()
+    print("HandTracker ready.")
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, w, h)
+    print("Window created. Game starting...")
 
     # 게임 상태
     STATE_INTRO    = "intro"

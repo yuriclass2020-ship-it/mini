@@ -52,11 +52,10 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;
 .word-row:hover{background:rgba(255,255,255,.08);}
 .w-emoji{font-size:1.7rem;min-width:36px;text-align:center;}
 .w-text{flex:1;font-size:1.05rem;font-weight:700;}
-.w-order{background:rgba(255,255,255,.08);border:1px solid var(--border);
-  color:#ccc;border-radius:8px;padding:5px 9px;cursor:pointer;
-  font-size:.85rem;transition:.2s;}
-.w-order:hover{background:rgba(255,255,255,.15);}
-.w-order:disabled{opacity:.25;cursor:default;}
+.word-row{cursor:grab;}
+.word-row.drag-over{border-color:var(--pink);background:rgba(255,110,180,.12);}
+.word-row.dragging{opacity:.4;}
+.drag-handle{color:var(--sub);font-size:1.1rem;cursor:grab;padding:0 4px;}
 .w-del{background:rgba(255,80,80,.15);border:1px solid rgba(255,100,100,.25);
   color:#ff9999;border-radius:8px;padding:5px 12px;cursor:pointer;
   font-size:.8rem;transition:.2s;}
@@ -210,21 +209,63 @@ let indexPos=null,pinching=false,pinchCooldown=0;
 let gameRunning=false,lastTime=0,wordStartTime=0;
 
 // ══ 설정 UI ══
+let dragSrc=null;
 function renderWordList(){
   document.getElementById('wordList').innerHTML=words.map((w,i)=>`
-    <div class="word-row">
+    <div class="word-row" draggable="true" data-i="${i}"
+      ondragstart="dStart(event,${i})" ondragover="dOver(event)"
+      ondrop="dDrop(event,${i})" ondragend="dEnd()">
+      <span class="drag-handle">⠿</span>
       <span class="w-emoji">${w.emoji}</span>
       <span class="w-text">${w.word}</span>
-      <button class="w-order" onclick="moveWord(${i},-1)" ${i===0?'disabled':''}>↑</button>
-      <button class="w-order" onclick="moveWord(${i},1)" ${i===words.length-1?'disabled':''}>↓</button>
       <button class="w-del" onclick="removeWord(${i})">삭제</button>
     </div>`).join('');
+  // 터치 드래그
+  document.querySelectorAll('.word-row').forEach((el,i)=>initTouchDrag(el,i));
+}
+function dStart(e,i){dragSrc=i;e.currentTarget.classList.add('dragging');}
+function dOver(e){e.preventDefault();
+  document.querySelectorAll('.word-row').forEach(r=>r.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');}
+function dDrop(e,i){e.preventDefault();
+  if(dragSrc===null||dragSrc===i)return;
+  const item=words.splice(dragSrc,1)[0];words.splice(i,0,item);
+  dragSrc=null;renderWordList();}
+function dEnd(){dragSrc=null;
+  document.querySelectorAll('.word-row').forEach(r=>r.classList.remove('dragging','drag-over'));}
+
+// 터치 드래그 (모바일)
+function initTouchDrag(el,i){
+  let startY,clone;
+  el.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;dragSrc=i;
+    clone=el.cloneNode(true);
+    const r=el.getBoundingClientRect();
+    Object.assign(clone.style,{position:'fixed',left:r.left+'px',top:r.top+'px',
+      width:r.width+'px',opacity:'.8',zIndex:'9999',pointerEvents:'none'});
+    document.body.appendChild(clone);el.style.opacity='.3';
+  },{passive:true});
+  el.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    const dy=e.touches[0].clientY-startY;
+    clone.style.top=(parseFloat(clone.style.top)+dy)+'px';
+    startY=e.touches[0].clientY;
+    // 드롭 대상 하이라이트
+    document.querySelectorAll('.word-row').forEach(r=>r.classList.remove('drag-over'));
+    const target=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY)?.closest('.word-row');
+    if(target)target.classList.add('drag-over');
+  },{passive:false});
+  el.addEventListener('touchend',e=>{
+    clone?.remove();el.style.opacity='';
+    const target=document.elementFromPoint(e.changedTouches[0].clientX,e.changedTouches[0].clientY)?.closest('.word-row');
+    const ti=target?parseInt(target.dataset.i):null;
+    if(ti!==null&&ti!==dragSrc){const item=words.splice(dragSrc,1)[0];words.splice(ti,0,item);}
+    dragSrc=null;renderWordList();
+  },{passive:true});
 }
 function moveWord(i,dir){
-  const j=i+dir;
-  if(j<0||j>=words.length)return;
-  [words[i],words[j]]=[words[j],words[i]];
-  renderWordList();
+  const j=i+dir;if(j<0||j>=words.length)return;
+  [words[i],words[j]]=[words[j],words[i]];renderWordList();
 }
 function addWord(){
   const e=document.getElementById('inEmoji').value.trim()||'❓';
@@ -340,21 +381,29 @@ function prepareWord(W,H){
     ...syls.map(s=>new Block(s)),
     ...shuffle(JUNK.filter(j=>!syls.includes(j))).slice(0,diffCount).map(j=>new Block(j))
   ]);
-  // 블록 고정 배치 (균등 분산)
+  // 블록 크기 및 위치 계산 (모든 블록이 화면 안에 들어오도록)
   const count=all.length;
-  const cols=Math.ceil(Math.sqrt(count*1.6));
-  const rows=Math.ceil(count/cols);
-  const padX=W*.1, padY=H*.22;
-  const cellW=(W-padX*2)/cols, cellH=(H-padY-H*.06)/rows;
+  const HUD=Math.min(H*.21,110); // HUD + 힌트 영역
+  const PAD=12;
+  const playW=W-PAD*2, playH=H-HUD-PAD*2;
+  // 가장 큰 블록 크기가 되는 cols 찾기
+  let bestCols=1;
+  for(let c=1;c<=count;c++){
+    const r=Math.ceil(count/c);
+    const sz=Math.min(playW/c,playH/r)*.38;
+    const bsz=Math.min(playW/bestCols,playH/Math.ceil(count/bestCols))*.38;
+    if(sz>bsz)bestCols=c;
+  }
+  const bestRows=Math.ceil(count/bestCols);
+  const cellW=playW/bestCols, cellH=playH/bestRows;
+  const sz=clamp(Math.min(cellW,cellH)*.38,32,72);
   all.forEach((b,i)=>{
-    const col=i%cols, row=Math.floor(i/cols);
-    b.sz=clamp(Math.min(cellW,cellH)*.42,40,80);
-    b.x=padX+cellW*col+cellW/2+rand(-cellW*.12,cellW*.12);
-    b.y=padY+cellH*row+cellH/2+rand(-cellH*.12,cellH*.12);
+    b.sz=sz;
+    b.x=PAD+cellW*(i%bestCols)+cellW/2;
+    b.y=HUD+PAD+cellH*Math.floor(i/bestCols)+cellH/2;
   });
   blocks=all; particles=[];
   wordStartTime=performance.now();
-  // 단어 읽어주기
   speak(emoji+' '+word);
 }
 
@@ -546,13 +595,14 @@ canvas.addEventListener('mousedown',e=>{if(!gameRunning)return;pinching=true;});
 canvas.addEventListener('mouseup',()=>{pinching=false;});
 
 // ══ 카메라 ══
+canvas.width=window.innerWidth; canvas.height=window.innerHeight;
 navigator.mediaDevices?.getUserMedia({
   video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}
 }).then(s=>{
   video.srcObject=s;
   video.onloadedmetadata=()=>{
-    canvas.width=video.videoWidth||640;
-    canvas.height=video.videoHeight||480;
+    canvas.width=video.videoWidth||window.innerWidth;
+    canvas.height=video.videoHeight||window.innerHeight;
     initMP();
   };
 }).catch(()=>{});
@@ -563,7 +613,7 @@ function startGame(){
   gameWords=[...words];wordIdx=0;correctCount=0;wrongCount=0;gameRunning=true;
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='block';
-  prepareWord(canvas.width||640,canvas.height||480);
+  prepareWord(canvas.width,canvas.height);
   lastTime=performance.now();requestAnimationFrame(gameLoop);
 }
 function endGame(){

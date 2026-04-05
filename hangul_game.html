@@ -478,12 +478,19 @@ function drawCursor(pos,pinch){
 }
 
 // ══ 게임 루프 ══
+let needPrepare=false;
 function gameLoop(ts){
   if(!gameRunning)return;
   requestAnimationFrame(gameLoop);
   const dt=Math.min((ts-lastTime)/1000,.05);lastTime=ts;
-  if(video.videoWidth){canvas.width=video.videoWidth;canvas.height=video.videoHeight;}
+  // 캔버스 크기: 비디오 기준으로 1회만 설정
+  if(video.videoWidth&&canvas.width!==video.videoWidth){
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  }
   const W=canvas.width,H=canvas.height;
+  // 블록 배치: 올바른 캔버스 크기 확보 후 실행
+  if(needPrepare&&W>100&&H>100){needPrepare=false;prepareWord(W,H);}
+  if(!blocks.length)return;
   // 웹캠
   ctx.save();ctx.scale(-1,1);ctx.translate(-W,0);
   ctx.drawImage(video,0,0,W,H);ctx.restore();
@@ -538,7 +545,7 @@ function doSelect(b,needed,W,H){
 function nextWord(W,H){
   wordIdx++;
   if(wordIdx>=gameWords.length){endGame();return;}
-  prepareWord(W,H);
+  needPrepare=true;
 }
 
 // ══ TTS ══
@@ -613,7 +620,7 @@ function startGame(){
   gameWords=[...words];wordIdx=0;correctCount=0;wrongCount=0;gameRunning=true;
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='block';
-  prepareWord(canvas.width,canvas.height);
+  needPrepare=true;
   lastTime=performance.now();requestAnimationFrame(gameLoop);
 }
 function endGame(){

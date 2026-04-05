@@ -11,13 +11,10 @@ Requirements:
 """
 
 import cv2
-import mediapipe as mp
 import numpy as np
 import random
 import math
 import time
-import os
-import urllib.request
 
 
 # ──────────────────────────────────────────────
@@ -119,71 +116,46 @@ class Petal:
 
 
 # ──────────────────────────────────────────────
-# 손 인식 래퍼 (MediaPipe Tasks API)
+# 손 인식 (피부색 기반 - 다운로드 불필요)
 # ──────────────────────────────────────────────
-# 손 랜드마크 연결 (시각화용)
-HAND_CONNECTIONS = [
-    (0,1),(1,2),(2,3),(3,4),
-    (0,5),(5,6),(6,7),(7,8),
-    (5,9),(9,10),(10,11),(11,12),
-    (9,13),(13,14),(14,15),(15,16),
-    (13,17),(17,18),(18,19),(19,20),(0,17),
-]
-
 class HandTracker:
-    MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-    MODEL_PATH = "hand_landmarker.task"
-
     def __init__(self):
-        if not os.path.exists(self.MODEL_PATH):
-            print("손 인식 모델 다운로드 중... (최초 1회, 수초 소요)")
-            urllib.request.urlretrieve(self.MODEL_URL, self.MODEL_PATH)
-            print("다운로드 완료!")
-
-        BaseOptions = mp.tasks.BaseOptions
-        HandLandmarker = mp.tasks.vision.HandLandmarker
-        HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
-        VisionRunningMode = mp.tasks.vision.RunningMode
-
-        options = HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=self.MODEL_PATH),
-            running_mode=VisionRunningMode.VIDEO,
-            num_hands=2,
-            min_hand_detection_confidence=0.6,
-            min_hand_presence_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
-        self.landmarker = HandLandmarker.create_from_options(options)
-        self.start_time = time.time()
+        self._kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
 
     def get_hand_centers(self, frame: np.ndarray) -> list[tuple[int, int]]:
-        """각 손의 중심 좌표 목록 반환"""
-        h, w = frame.shape[:2]
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        timestamp_ms = int((time.time() - self.start_time) * 1000)
-        result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
+        """피부색 검출로 손 중심 좌표 반환 (최대 2개)"""
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
+        # 피부색 범위 (HSV)
+        mask1 = cv2.inRange(hsv, np.array([0,  20, 70]), np.array([20, 255, 255]))
+        mask2 = cv2.inRange(hsv, np.array([170, 20, 70]), np.array([180, 255, 255]))
+        mask = cv2.bitwise_or(mask1, mask2)
+
+        # 노이즈 제거
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  self._kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self._kernel)
+        mask = cv2.dilate(mask, self._kernel, iterations=2)
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # 면적 기준 정렬 후 상위 2개 선택
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         centers = []
-        if result.hand_landmarks:
-            for hand_landmarks in result.hand_landmarks:
-                wrist   = hand_landmarks[0]
-                mid_mcp = hand_landmarks[9]
-                cx = int((wrist.x + mid_mcp.x) / 2 * w)
-                cy = int((wrist.y + mid_mcp.y) / 2 * h)
+        for cnt in contours[:2]:
+            if cv2.contourArea(cnt) < 4000:
+                break
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
                 centers.append((cx, cy))
-
-                # 랜드마크 시각화
-                pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
-                for a, b in HAND_CONNECTIONS:
-                    cv2.line(frame, pts[a], pts[b], (150, 100, 200), 1)
-                for px, py in pts:
-                    cv2.circle(frame, (px, py), 3, (200, 150, 255), -1)
+                # 윤곽선 시각화
+                cv2.drawContours(frame, [cnt], -1, (150, 100, 200), 2)
 
         return centers
 
     def release(self):
-        self.landmarker.close()
+        pass
 
 
 # ──────────────────────────────────────────────

@@ -182,22 +182,35 @@ function lighten(hex) {
 
 // ── 손 인식 (MediaPipe) ────────────────────────
 let handsReady = false;
-const hands = new Hands({ locateFile: f =>
-  `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-hands.setOptions({ maxNumHands: 2, modelComplexity: 0,
-  minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
-hands.onResults(results => {
-  handCenters = [];
-  if (!results.multiHandLandmarks) return;
-  for (const lm of results.multiHandLandmarks) {
-    // 손목(0) + 중지MCP(9) 중간점
-    const cx = (lm[0].x + lm[9].x) / 2;
-    const cy = (lm[0].y + lm[9].y) / 2;
-    // 미러 반전 보정
-    handCenters.push({ x: (1 - cx) * canvas.width, y: cy * canvas.height });
-  }
-});
-hands.initialize().then(() => { handsReady = true; });
+let mpHands = null;
+
+function initMediaPipe() {
+  try {
+    mpHands = new Hands({ locateFile: f =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    mpHands.setOptions({ maxNumHands: 2, modelComplexity: 0,
+      minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+    mpHands.onResults(results => {
+      handCenters = [];
+      if (!results.multiHandLandmarks) return;
+      for (const lm of results.multiHandLandmarks) {
+        const cx = (lm[0].x + lm[9].x) / 2;
+        const cy = (lm[0].y + lm[9].y) / 2;
+        handCenters.push({ x: (1 - cx) * canvas.width, y: cy * canvas.height });
+      }
+    });
+    mpHands.initialize().then(() => {
+      handsReady = true;
+      try {
+        const cam = new Camera(video, {
+          onFrame: async () => { if (mpHands) await mpHands.send({ image: video }); },
+          width: 640, height: 480
+        });
+        cam.start();
+      } catch(e) { handsReady = false; }
+    }).catch(() => { handsReady = false; });
+  } catch(e) { handsReady = false; }
+}
 
 // 카메라 설정
 navigator.mediaDevices.getUserMedia({
@@ -207,17 +220,9 @@ navigator.mediaDevices.getUserMedia({
   video.onloadedmetadata = () => {
     canvas.width  = video.videoWidth  || 640;
     canvas.height = video.videoHeight || 480;
-    startProcessing();
+    initMediaPipe();
   };
-}).catch(e => alert('카메라 접근 실패: ' + e.message));
-
-function startProcessing() {
-  const cam = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: canvas.width, height: canvas.height
-  });
-  cam.start();
-}
+}).catch(e => { console.warn('Camera:', e); });
 
 // ── 게임 루프 ───────────────────────────────────
 function gameLoop(ts) {

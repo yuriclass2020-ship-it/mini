@@ -68,10 +68,9 @@
 
   <div id="overlay">
     <h1>🌸 Cherry Blossom Catcher</h1>
-    <p>Show your palm to the camera</p>
-    <p>or <b>touch &amp; drag</b> on mobile!</p>
+    <p>Touch &amp; drag to catch petals!</p>
+    <p style="font-size:0.75em;color:#ccc">(Hand tracking loads automatically)</p>
     <button class="start-btn" id="startBtn">START</button>
-    <div id="loading">Loading hand tracker...<br>please wait</div>
   </div>
 
   <div id="gameover" id="gameoverEl">
@@ -107,7 +106,6 @@ const comboEl    = document.getElementById('combo');
 const gameoverEl = document.getElementById('gameover');
 const startBtn   = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
-const loadingEl  = document.getElementById('loading');
 
 // ── 게임 상태 ──────────────────────────────────
 let state = 'intro'; // intro | playing | gameover
@@ -349,22 +347,8 @@ canvas.addEventListener('mousemove', e => {
   handCenters = [getCanvasPos(e.clientX, e.clientY)];
 });
 
-startBtn.addEventListener('click', () => {
-  if (!handsReady) {
-    startBtn.style.display  = 'none';
-    loadingEl.style.display = 'block';
-    loadingEl.innerHTML     = 'Loading hand tracker...<br>please wait';
-    // 8초 후 터치 모드로 자동 시작
-    const timer = setTimeout(() => {
-      clearInterval(poll);
-      loadingEl.innerHTML = 'Starting in touch mode!<br>drag your finger to catch petals 👆';
-      setTimeout(startGame, 1200);
-    }, 8000);
-    const poll = setInterval(() => {
-      if (handsReady) { clearInterval(poll); clearTimeout(timer); startGame(); }
-    }, 300);
-  } else { startGame(); }
-});
+// START 버튼: 즉시 게임 시작 (손 인식은 백그라운드 로드)
+startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', startGame);
 
 // 게임 루프 시작 (intro 화면에서도 비디오 표시)

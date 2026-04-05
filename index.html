@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cherry Blossom Catcher 🌸</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a0020; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; height: 100dvh;
+         overflow: hidden; font-family: Arial, sans-serif; }
+  #container { position: relative; width: 100%; max-width: 720px; }
+  video { width: 100%; display: block; transform: scaleX(-1); }
+  canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+             display: flex; flex-direction: column; align-items: center;
+             justify-content: center; background: rgba(20,0,40,0.6);
+             color: white; text-align: center; cursor: pointer; }
+  #overlay h1 { font-size: clamp(1.5rem, 5vw, 2.5rem); color: #ff80cc;
+                text-shadow: 0 0 20px #ff40aa; margin-bottom: 1rem; }
+  #overlay p  { font-size: clamp(0.8rem, 2.5vw, 1rem); margin: 0.3rem 0;
+                color: #eee; }
+  #overlay .start-btn { margin-top: 1.5rem; padding: 0.8rem 2.5rem;
+    background: linear-gradient(135deg, #ff60bb, #aa30ff);
+    border: none; border-radius: 50px; color: white;
+    font-size: clamp(1rem, 3vw, 1.3rem); cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,100,200,0.5); }
+  #hud { position: absolute; top: 0; left: 0; width: 100%;
+         background: rgba(30,0,50,0.6); padding: 8px 16px;
+         display: flex; justify-content: space-between; align-items: center;
+         color: white; font-size: clamp(0.8rem, 2.5vw, 1rem);
+         display: none; }
+  .hud-score { color: #ffd700; font-weight: bold; }
+  .hud-time  { color: white; font-weight: bold; }
+  .hud-time.urgent { color: #ff4444; }
+  .hud-miss  { color: #88aaff; }
+  #combo { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+           color: #ffd700; font-size: clamp(1rem, 4vw, 1.5rem); font-weight: bold;
+           text-shadow: 0 0 10px #ff8800; display: none; pointer-events: none; }
+  #gameover { position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+              background: rgba(20,0,40,0.8); display: none;
+              flex-direction: column; align-items: center; justify-content: center;
+              color: white; text-align: center; }
+  #gameover h2 { font-size: clamp(2rem, 6vw, 3rem); color: #cc60ff;
+                 text-shadow: 0 0 20px #aa00ff; margin-bottom: 1rem; }
+  #gameover .final { font-size: clamp(1rem, 3vw, 1.3rem); margin: 0.4rem 0; }
+  #gameover .restart { margin-top: 1.5rem; padding: 0.8rem 2.5rem;
+    background: linear-gradient(135deg, #ff60bb, #aa30ff);
+    border: none; border-radius: 50px; color: white;
+    font-size: clamp(1rem, 3vw, 1.3rem); cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,100,200,0.5); }
+  #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+             color: #ff80cc; font-size: 1.1rem; display: none; text-align: center; }
+</style>
+</head>
+<body>
+<div id="container">
+  <video id="video" playsinline autoplay muted></video>
+  <canvas id="canvas"></canvas>
+
+  <div id="hud">
+    <span class="hud-score" id="scoreEl">SCORE 0000</span>
+    <span class="hud-time"  id="timeEl">TIME 60s</span>
+    <span class="hud-miss"  id="missEl">MISS 00</span>
+  </div>
+
+  <div id="combo">3 COMBO!</div>
+
+  <div id="overlay">
+    <h1>🌸 Cherry Blossom Catcher</h1>
+    <p>Show your palm to the camera</p>
+    <p>Move your hand to catch falling petals!</p>
+    <button class="start-btn" id="startBtn">START</button>
+    <div id="loading">Loading hand tracker...<br>please wait</div>
+  </div>
+
+  <div id="gameover" id="gameoverEl">
+    <h2>GAME OVER</h2>
+    <p class="final" id="finalScore">Score: 0</p>
+    <p class="final" id="finalMiss">Missed: 0</p>
+    <button class="restart" id="restartBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<!-- MediaPipe Hands -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<script>
+// ── 설정 ───────────────────────────────────────
+const GAME_DURATION   = 60;
+const CATCH_RADIUS    = 55;
+const SPAWN_INTERVAL  = 1400; // ms
+const INITIAL_PETALS  = 6;
+const PETAL_COLORS    = ['#ff80cc','#dd88ff','#ffaadd','#cc66ff','#ff66bb','#ffbbee'];
+
+// ── DOM ────────────────────────────────────────
+const video      = document.getElementById('video');
+const canvas     = document.getElementById('canvas');
+const ctx        = canvas.getContext('2d');
+const overlay    = document.getElementById('overlay');
+const hud        = document.getElementById('hud');
+const scoreEl    = document.getElementById('scoreEl');
+const timeEl     = document.getElementById('timeEl');
+const missEl     = document.getElementById('missEl');
+const comboEl    = document.getElementById('combo');
+const gameoverEl = document.getElementById('gameover');
+const startBtn   = document.getElementById('startBtn');
+const restartBtn = document.getElementById('restartBtn');
+const loadingEl  = document.getElementById('loading');
+
+// ── 게임 상태 ──────────────────────────────────
+let state = 'intro'; // intro | playing | gameover
+let score = 0, missed = 0, combo = 0;
+let petals = [];
+let handCenters = [];
+let lastSpawn = 0;
+let gameEndTime = 0;
+let animId = null;
+
+// ── 벚꽃 잎 ────────────────────────────────────
+class Petal {
+  constructor(w, h) {
+    this.w = w; this.h = h;
+    this.x = rand(30, w - 30);
+    this.y = rand(-60, -10);
+    this.vy = rand(1.5, 4.0);
+    this.vx = rand(-1.0, 1.0);
+    this.size = rand(12, 24);
+    this.color = PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)];
+    this.angle = rand(0, Math.PI * 2);
+    this.rotSpeed = rand(-0.04, 0.04);
+    this.alpha = rand(0.7, 1.0);
+    this.caught = false;
+    this.catchFrame = 0;
+  }
+  update() {
+    if (this.caught) { this.catchFrame++; return this.catchFrame > 25; }
+    this.x += this.vx; this.y += this.vy; this.angle += this.rotSpeed;
+    if (this.x < -30) this.x = this.w + 20;
+    if (this.x > this.w + 30) this.x = -20;
+    if (this.y > this.h + 30) return true;
+    return false;
+  }
+  draw(ctx) {
+    ctx.save();
+    if (this.caught) {
+      const r = this.size + this.catchFrame * 3;
+      const a = Math.max(0, 1 - this.catchFrame / 25);
+      ctx.globalAlpha = a * 0.8;
+      ctx.fillStyle = this.color;
+      ctx.beginPath(); ctx.arc(this.x, this.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); return;
+    }
+    ctx.globalAlpha = this.alpha;
+    ctx.translate(this.x, this.y);
+    for (let i = 0; i < 5; i++) {
+      const a = this.angle + i * (Math.PI * 2 / 5);
+      const px = Math.cos(a) * this.size * 0.6;
+      const py = Math.sin(a) * this.size * 0.6;
+      ctx.save(); ctx.translate(px, py); ctx.rotate(a);
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, this.size / 2, this.size / 4, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.restore();
+    }
+    // center
+    ctx.fillStyle = lighten(this.color);
+    ctx.beginPath(); ctx.arc(0, 0, this.size / 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function lighten(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, ((n >> 16) & 0xff) + 60);
+  const g = Math.min(255, ((n >>  8) & 0xff) + 60);
+  const b = Math.min(255, ( n        & 0xff) + 60);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ── 손 인식 (MediaPipe) ────────────────────────
+let handsReady = false;
+const hands = new Hands({ locateFile: f =>
+  `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+hands.setOptions({ maxNumHands: 2, modelComplexity: 0,
+  minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+hands.onResults(results => {
+  handCenters = [];
+  if (!results.multiHandLandmarks) return;
+  for (const lm of results.multiHandLandmarks) {
+    // 손목(0) + 중지MCP(9) 중간점
+    const cx = (lm[0].x + lm[9].x) / 2;
+    const cy = (lm[0].y + lm[9].y) / 2;
+    // 미러 반전 보정
+    handCenters.push({ x: (1 - cx) * canvas.width, y: cy * canvas.height });
+  }
+});
+hands.initialize().then(() => { handsReady = true; });
+
+// 카메라 설정
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+}).then(stream => {
+  video.srcObject = stream;
+  video.onloadedmetadata = () => {
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+    startProcessing();
+  };
+}).catch(e => alert('카메라 접근 실패: ' + e.message));
+
+function startProcessing() {
+  const cam = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: canvas.width, height: canvas.height
+  });
+  cam.start();
+}
+
+// ── 게임 루프 ───────────────────────────────────
+function gameLoop(ts) {
+  animId = requestAnimationFrame(gameLoop);
+
+  canvas.width = video.videoWidth  || canvas.width;
+  canvas.height = video.videoHeight || canvas.height;
+  const W = canvas.width, H = canvas.height;
+
+  // 웹캠 미러 출력
+  ctx.save();
+  ctx.scale(-1, 1); ctx.translate(-W, 0);
+  ctx.drawImage(video, 0, 0, W, H);
+  ctx.restore();
+
+  // 핑크 틴트
+  ctx.fillStyle = 'rgba(255,220,240,0.06)';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'playing') {
+    const timeLeft = Math.max(0, (gameEndTime - Date.now()) / 1000);
+
+    // 꽃잎 생성
+    if (ts - lastSpawn > SPAWN_INTERVAL) {
+      petals.push(new Petal(W, H)); lastSpawn = ts;
+    }
+
+    // 꽃잎 충돌 & 업데이트
+    let caughtNow = 0;
+    petals = petals.filter(p => {
+      if (!p.caught) {
+        for (const hc of handCenters) {
+          const dx = p.x - hc.x, dy = p.y - hc.y;
+          if (Math.hypot(dx, dy) < CATCH_RADIUS + p.size) {
+            p.caught = true; caughtNow++; break;
+          }
+        }
+        if (!p.caught && p.update()) { missed++; combo = 0; return false; }
+      } else { if (p.update()) return false; }
+      return true;
+    });
+
+    if (caughtNow > 0) {
+      combo += caughtNow;
+      score += caughtNow * 10 * (1 + Math.floor(combo / 5));
+    }
+
+    // 꽃잎 그리기
+    petals.forEach(p => p.draw(ctx));
+
+    // 손 커서
+    for (const hc of handCenters) {
+      ctx.strokeStyle = 'rgba(200,100,255,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(hc.x, hc.y, CATCH_RADIUS, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,180,255,0.9)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(hc.x - 12, hc.y); ctx.lineTo(hc.x + 12, hc.y);
+      ctx.moveTo(hc.x, hc.y - 12); ctx.lineTo(hc.x, hc.y + 12); ctx.stroke();
+    }
+
+    // HUD 업데이트
+    scoreEl.textContent = `SCORE ${String(score).padStart(4,'0')}`;
+    timeEl.textContent  = `TIME ${Math.ceil(timeLeft)}s`;
+    timeEl.className    = 'hud-time' + (timeLeft < 10 ? ' urgent' : '');
+    missEl.textContent  = `MISS ${String(missed).padStart(2,'0')}`;
+
+    // 콤보
+    if (combo >= 3) {
+      comboEl.textContent = `${combo} COMBO!`;
+      comboEl.style.display = 'block';
+    } else { comboEl.style.display = 'none'; }
+
+    if (timeLeft <= 0) endGame();
+  }
+}
+
+// ── 게임 시작/종료 ──────────────────────────────
+function startGame() {
+  score = 0; missed = 0; combo = 0;
+  petals = Array.from({ length: INITIAL_PETALS }, () =>
+    new Petal(canvas.width, canvas.height));
+  lastSpawn = performance.now();
+  gameEndTime = Date.now() + GAME_DURATION * 1000;
+  state = 'playing';
+  overlay.style.display   = 'none';
+  gameoverEl.style.display = 'none';
+  hud.style.display        = 'flex';
+  comboEl.style.display    = 'none';
+  if (!animId) requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  state = 'gameover';
+  hud.style.display        = 'none';
+  comboEl.style.display    = 'none';
+  gameoverEl.style.display = 'flex';
+  document.getElementById('finalScore').textContent = `Score: ${score}`;
+  document.getElementById('finalMiss').textContent  = `Missed: ${missed}`;
+}
+
+startBtn.addEventListener('click', () => {
+  if (!handsReady) {
+    startBtn.style.display   = 'none';
+    loadingEl.style.display  = 'block';
+    const wait = setInterval(() => {
+      if (handsReady) { clearInterval(wait); startGame(); }
+    }, 300);
+  } else { startGame(); }
+});
+restartBtn.addEventListener('click', startGame);
+
+// 게임 루프 시작 (intro 화면에서도 비디오 표시)
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

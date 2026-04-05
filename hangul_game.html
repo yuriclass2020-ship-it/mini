@@ -396,7 +396,7 @@ function prepareWord(W,H){
   }
   const bestRows=Math.ceil(count/bestCols);
   const cellW=playW/bestCols, cellH=playH/bestRows;
-  const sz=clamp(Math.min(cellW,cellH)*.38,32,72);
+  const sz=clamp(Math.min(cellW,cellH)*.30,26,56);
   all.forEach((b,i)=>{
     b.sz=sz;
     b.x=PAD+cellW*(i%bestCols)+cellW/2;

@@ -16,6 +16,8 @@ import numpy as np
 import random
 import math
 import time
+import os
+import urllib.request
 
 
 # ──────────────────────────────────────────────
@@ -117,48 +119,71 @@ class Petal:
 
 
 # ──────────────────────────────────────────────
-# 손 인식 래퍼
+# 손 인식 래퍼 (MediaPipe Tasks API)
 # ──────────────────────────────────────────────
+# 손 랜드마크 연결 (시각화용)
+HAND_CONNECTIONS = [
+    (0,1),(1,2),(2,3),(3,4),
+    (0,5),(5,6),(6,7),(7,8),
+    (5,9),(9,10),(10,11),(11,12),
+    (9,13),(13,14),(14,15),(15,16),
+    (13,17),(17,18),(18,19),(19,20),(0,17),
+]
+
 class HandTracker:
+    MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    MODEL_PATH = "hand_landmarker.task"
+
     def __init__(self):
-        self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
-            max_num_hands=2,
-            min_detection_confidence=0.6,
+        if not os.path.exists(self.MODEL_PATH):
+            print("손 인식 모델 다운로드 중... (최초 1회, 수초 소요)")
+            urllib.request.urlretrieve(self.MODEL_URL, self.MODEL_PATH)
+            print("다운로드 완료!")
+
+        BaseOptions = mp.tasks.BaseOptions
+        HandLandmarker = mp.tasks.vision.HandLandmarker
+        HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
+        VisionRunningMode = mp.tasks.vision.RunningMode
+
+        options = HandLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=self.MODEL_PATH),
+            running_mode=VisionRunningMode.VIDEO,
+            num_hands=2,
+            min_hand_detection_confidence=0.6,
+            min_hand_presence_confidence=0.5,
             min_tracking_confidence=0.5,
         )
-        self.mp_draw = mp.solutions.drawing_utils
+        self.landmarker = HandLandmarker.create_from_options(options)
+        self.start_time = time.time()
 
     def get_hand_centers(self, frame: np.ndarray) -> list[tuple[int, int]]:
-        """각 손의 중심 좌표 목록 반환 (화면 좌우 반전 적용)"""
+        """각 손의 중심 좌표 목록 반환"""
         h, w = frame.shape[:2]
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = self.hands.process(rgb)
-        centers = []
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        timestamp_ms = int((time.time() - self.start_time) * 1000)
+        result = self.landmarker.detect_for_video(mp_image, timestamp_ms)
 
-        if result.multi_hand_landmarks:
-            for hand_landmarks in result.multi_hand_landmarks:
-                # 손목(0)과 중지 MCP(9) 중간점을 손 중심으로 사용
-                wrist = hand_landmarks.landmark[0]
-                mid_mcp = hand_landmarks.landmark[9]
+        centers = []
+        if result.hand_landmarks:
+            for hand_landmarks in result.hand_landmarks:
+                wrist   = hand_landmarks[0]
+                mid_mcp = hand_landmarks[9]
                 cx = int((wrist.x + mid_mcp.x) / 2 * w)
                 cy = int((wrist.y + mid_mcp.y) / 2 * h)
                 centers.append((cx, cy))
 
-                # 랜드마크 시각화 (연한 색)
-                self.mp_draw.draw_landmarks(
-                    frame,
-                    hand_landmarks,
-                    self.mp_hands.HAND_CONNECTIONS,
-                    self.mp_draw.DrawingSpec(color=(200, 150, 255), thickness=1, circle_radius=2),
-                    self.mp_draw.DrawingSpec(color=(150, 100, 200), thickness=1),
-                )
+                # 랜드마크 시각화
+                pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
+                for a, b in HAND_CONNECTIONS:
+                    cv2.line(frame, pts[a], pts[b], (150, 100, 200), 1)
+                for px, py in pts:
+                    cv2.circle(frame, (px, py), 3, (200, 150, 255), -1)
 
         return centers
 
     def release(self):
-        self.hands.close()
+        self.landmarker.close()
 
 
 # ──────────────────────────────────────────────

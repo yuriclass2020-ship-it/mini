@@ -52,6 +52,11 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;
 .word-row:hover{background:rgba(255,255,255,.08);}
 .w-emoji{font-size:1.7rem;min-width:36px;text-align:center;}
 .w-text{flex:1;font-size:1.05rem;font-weight:700;}
+.w-order{background:rgba(255,255,255,.08);border:1px solid var(--border);
+  color:#ccc;border-radius:8px;padding:5px 9px;cursor:pointer;
+  font-size:.85rem;transition:.2s;}
+.w-order:hover{background:rgba(255,255,255,.15);}
+.w-order:disabled{opacity:.25;cursor:default;}
 .w-del{background:rgba(255,80,80,.15);border:1px solid rgba(255,100,100,.25);
   color:#ff9999;border-radius:8px;padding:5px 12px;cursor:pointer;
   font-size:.8rem;transition:.2s;}
@@ -210,8 +215,16 @@ function renderWordList(){
     <div class="word-row">
       <span class="w-emoji">${w.emoji}</span>
       <span class="w-text">${w.word}</span>
+      <button class="w-order" onclick="moveWord(${i},-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="w-order" onclick="moveWord(${i},1)" ${i===words.length-1?'disabled':''}>↓</button>
       <button class="w-del" onclick="removeWord(${i})">삭제</button>
     </div>`).join('');
+}
+function moveWord(i,dir){
+  const j=i+dir;
+  if(j<0||j>=words.length)return;
+  [words[i],words[j]]=[words[j],words[i]];
+  renderWordList();
 }
 function addWord(){
   const e=document.getElementById('inEmoji').value.trim()||'❓';
@@ -250,27 +263,16 @@ class Particle{
 
 // ══ 음절 블록 ══
 class Block{
-  constructor(char,W,H){
-    this.char=char;
-    this.sz=clamp(Math.min(W,H)*.115,50,88);
-    this.x=rand(this.sz+10,W-this.sz-10);
-    this.y=rand(this.sz+80,H-this.sz-10);
-    this.vx=rand(-.7,.7);this.vy=rand(-.7,.7);
+  constructor(char){
+    this.char=char;this.sz=60;this.x=0;this.y=0;
     this.color=BLOCK_COLORS[Math.floor(Math.random()*BLOCK_COLORS.length)];
     this.hovered=false;this.dwellTime=0;
-    this.angle=rand(-8,8);this.targetAngle=this.angle;
+    this.angle=rand(-4,4);
     this.selected=false;this.selAnim=0;this.pulse=0;
   }
   update(W,H,dt){
     if(this.selected){this.selAnim+=dt*4;return;}
-    this.x+=this.vx;this.y+=this.vy;
-    if(this.x<this.sz||this.x>W-this.sz) this.vx*=-1;
-    if(this.y<this.sz+72||this.y>H-this.sz) this.vy*=-1;
-    this.x=clamp(this.x,this.sz,W-this.sz);
-    this.y=clamp(this.y,this.sz+72,H-this.sz);
-    this.targetAngle=this.hovered?0:rand(-5,5)*0.3+this.targetAngle*0.97;
-    this.angle+=(this.targetAngle-this.angle)*.12;
-    this.pulse=(this.pulse+dt*3)%(Math.PI*2);
+    this.pulse=(this.pulse+dt*2.5)%(Math.PI*2);
   }
   draw(ctx){
     if(this.selected&&this.selAnim>1)return;
@@ -331,16 +333,29 @@ const ctx=canvas.getContext('2d');
 const video=document.getElementById('video');
 
 function prepareWord(W,H){
-  const {word}=gameWords[wordIdx];
+  const {word,emoji}=gameWords[wordIdx];
   const syls=[...word];
   progress=[];
   const all=shuffle([
-    ...syls.map(s=>new Block(s,W,H)),
-    ...shuffle(JUNK.filter(j=>!syls.includes(j))).slice(0,diffCount).map(j=>new Block(j,W,H))
+    ...syls.map(s=>new Block(s)),
+    ...shuffle(JUNK.filter(j=>!syls.includes(j))).slice(0,diffCount).map(j=>new Block(j))
   ]);
-  blocks=all;
-  particles=[];
+  // 블록 고정 배치 (균등 분산)
+  const count=all.length;
+  const cols=Math.ceil(Math.sqrt(count*1.6));
+  const rows=Math.ceil(count/cols);
+  const padX=W*.1, padY=H*.22;
+  const cellW=(W-padX*2)/cols, cellH=(H-padY-H*.06)/rows;
+  all.forEach((b,i)=>{
+    const col=i%cols, row=Math.floor(i/cols);
+    b.sz=clamp(Math.min(cellW,cellH)*.42,40,80);
+    b.x=padX+cellW*col+cellW/2+rand(-cellW*.12,cellW*.12);
+    b.y=padY+cellH*row+cellH/2+rand(-cellH*.12,cellH*.12);
+  });
+  blocks=all; particles=[];
   wordStartTime=performance.now();
+  // 단어 읽어주기
+  speak(emoji+' '+word);
 }
 
 // ══ HUD 그리기 ══
@@ -458,13 +473,16 @@ function doSelect(b,needed,W,H){
   if(b.char===needed){
     b.selected=true;
     for(let i=0;i<12;i++) particles.push(new Particle(b.x,b.y,b.color));
+    speak(b.char);
     progress.push(b.char);
     if(progress.length===[...gameWords[wordIdx].word].length){
       correctCount++;
-      setTimeout(()=>{if(gameRunning)nextWord(W,H);},700);
+      speak(gameWords[wordIdx].word);
+      setTimeout(()=>{if(gameRunning)nextWord(W,H);},900);
     }
   }else{
-    b.angle=rand(-18,18);// 오답 흔들기
+    b.angle=rand(-18,18);
+    speak('다시');
   }
 }
 
@@ -472,6 +490,15 @@ function nextWord(W,H){
   wordIdx++;
   if(wordIdx>=gameWords.length){endGame();return;}
   prepareWord(W,H);
+}
+
+// ══ TTS ══
+function speak(text){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='ko-KR';u.rate=0.85;u.pitch=1.1;
+  speechSynthesis.speak(u);
 }
 
 // ══ 손 인식 ══
@@ -533,7 +560,7 @@ navigator.mediaDevices?.getUserMedia({
 // ══ 화면 전환 ══
 function startGame(){
   if(!words.length)return alert('단어를 추가하세요.');
-  gameWords=shuffle(words);wordIdx=0;correctCount=0;wrongCount=0;gameRunning=true;
+  gameWords=[...words];wordIdx=0;correctCount=0;wrongCount=0;gameRunning=true;
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('gameScreen').style.display='block';
   prepareWord(canvas.width||640,canvas.height||480);

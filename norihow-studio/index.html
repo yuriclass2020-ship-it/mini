@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NORIHOW STUDIO — AI 팀원 대시보드</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── ROOT TOKENS ───────────────────────────────── */
+    :root {
+      --bg:      #faf6ef;
+      --card:    #fffdf8;
+      --point:   #a86c30;
+      --point2:  #c4924a;
+      --sb:      64px;
+      --tb:      60px;
+
+      /* team colors */
+      --rose:   #e8748a;
+      --coral:  #e87855;
+      --plum:   #9b5a7a;
+      --sage:   #6a9e7a;
+      --teal:   #3a9e9a;
+      --sky:    #4a9ed5;
+      --violet: #7a6abf;
+
+      --t1: #3d2e1e;
+      --t2: #7a6a5a;
+      --t3: #b0a090;
+
+      --sh1: 0 2px 10px rgba(168,108,48,.07);
+      --sh2: 0 4px 24px rgba(168,108,48,.12);
+      --sh3: 0 8px 40px rgba(168,108,48,.18);
+    }
+
+    /* ─── RESET ─────────────────────────────────────── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Noto Serif KR', serif;
+      background: var(--bg);
+      color: var(--t1);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    button { font-family: 'Noto Serif KR', serif; }
+    textarea, input, select { font-family: 'Noto Serif KR', serif; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(168,108,48,.2); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(168,108,48,.4); }
+
+    /* ─── SIDEBAR ────────────────────────────────────── */
+    .sidebar {
+      width: var(--sb);
+      height: 100vh;
+      background: var(--card);
+      border-right: 1px solid rgba(168,108,48,.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 0 16px;
+      gap: 6px;
+      position: fixed;
+      left: 0; top: 0;
+      z-index: 200;
+      box-shadow: var(--sh1);
+    }
+
+    .sb-logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--point), var(--point2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      font-size: 14px; font-weight: 700; letter-spacing: .02em;
+      margin-bottom: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .sb-divider { width: 28px; height: 1px; background: rgba(168,108,48,.12); margin: 3px 0; }
+
+    .sb-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+      border: 2px solid transparent;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .sb-avatar svg { width: 100%; height: 100%; display: block; }
+    .sb-avatar:hover { transform: scale(1.1); box-shadow: var(--sh2); }
+    .sb-avatar.active { border-color: var(--point); box-shadow: 0 0 0 3px rgba(168,108,48,.2); }
+
+    /* Tooltip */
+    .sb-avatar::after {
+      content: attr(data-name);
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--t1);
+      color: #fff;
+      font-size: 11px; font-weight: 300;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s;
+      letter-spacing: .04em;
+    }
+    .sb-avatar:hover::after { opacity: 1; }
+
+    /* ─── MAIN WRAPPER ───────────────────────────────── */
+    .main {
+      margin-left: var(--sb);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ─── TOPBAR ─────────────────────────────────────── */
+    .topbar {
+      height: var(--tb);
+      background: var(--card);
+      border-bottom: 1px solid rgba(168,108,48,.1);
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      gap: 14px;
+      position: sticky; top: 0;
+      z-index: 100;
+      box-shadow: var(--sh1);
+      flex-shrink: 0;
+    }
+
+    .tb-title { flex: 1; min-width: 0; }
+    .tb-title h1 { font-size: 15px; font-weight: 700; letter-spacing: .06em; color: var(--t1); }
+    .tb-date { font-size: 10px; font-weight: 300; letter-spacing: .1em; color: var(--t3); margin-top: 2px; }
+
+    .tb-nav { display: flex; gap: 3px; }
+    .nav-btn {
+      padding: 6px 13px;
+      border-radius: 18px;
+      border: none;
+      background: transparent;
+      font-size: 12px; font-weight: 300; letter-spacing: .04em;
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .nav-btn:hover { background: rgba(168,108,48,.08); color: var(--point); }
+    .nav-btn.active { background: var(--point); color: #fff; }
+
+    .new-btn {
+      padding: 8px 15px;
+      background: var(--point);
+      color: #fff;
+      border: none;
+      border-radius: 18px;
+      font-size: 12px; font-weight: 400;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .new-btn:hover { background: #8a5520; transform: translateY(-1px); box-shadow: var(--sh2); }
+
+    /* ─── MAIN CONTENT ───────────────────────────────── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px;
+    }
+
+    /* ─── SECTIONS ───────────────────────────────────── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-label {
+      font-size: 10px; font-weight: 300; letter-spacing: .12em;
+      color: var(--t3); text-transform: uppercase; margin-bottom: 14px;
+    }
+
+    /* ─── API KEY BANNER ─────────────────────────────── */
+    .api-banner {
+      background: rgba(232,120,85,.08);
+      border: 1px solid rgba(232,120,85,.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      font-size: 12px; font-weight: 300;
+      color: #b04020;
+      display: none;
+    }
+    .api-banner.show { display: block; }
+    .api-banner-row { display: flex; gap: 8px; margin-top: 8px; }
+    .api-key-input {
+      flex: 1; padding: 7px 11px;
+      border-radius: 8px;
+      border: 1px solid rgba(232,120,85,.3);
+      background: #fff;
+      font-size: 12px; outline: none;
+      color: var(--t1);
+    }
+    .api-key-save {
+      padding: 7px 14px;
+      background: #c45a30; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 12px; cursor: pointer;
+    }
+
+    /* ─── BRIEFING CARD ──────────────────────────────── */
+    .briefing {
+      background: linear-gradient(135deg, #a86c30 0%, #c4924a 50%, #d4a85a 100%);
+      border-radius: 18px;
+      padding: 22px 24px;
+      color: #fff;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .briefing::before {
+      content:'';
+      position: absolute; top:-40%; right:-8%;
+      width: 180px; height: 180px;
+      background: rgba(255,255,255,.07);
+      border-radius: 50%;
+    }
+    .briefing::after {
+      content:'';
+      position: absolute; bottom:-30%; left:20%;
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,.04);
+      border-radius: 50%;
+    }
+    .briefing-head {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .briefing-icon { font-size: 16px; }
+    .briefing-lbl { font-size: 10px; font-weight: 300; letter-spacing: .12em; opacity: .8; }
+    .briefing-body {
+      font-size: 13px; font-weight: 300; line-height: 1.75;
+      position: relative; z-index: 1;
+      min-height: 36px;
+    }
+    .loading-dots { display: flex; align-items: center; gap: 6px; opacity: .8; }
+    .dot { width:7px; height:7px; background:#fff; border-radius:50%; animation: dot 1.4s infinite; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+
+    /* ─── DEPT TABS ──────────────────────────────────── */
+    .dept-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+    .dept-tab {
+      padding: 5px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(168,108,48,.2);
+      background: transparent;
+      font-size: 11px; font-weight: 300; letter-spacing: .04em;
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .dept-tab:hover { border-color: var(--point); color: var(--point); }
+    .dept-tab.active { background: var(--point); border-color: var(--point); color: #fff; }
+
+    /* ─── TEAM GRID ──────────────────────────────────── */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    /* ─── TEAM CARD ──────────────────────────────────── */
+    .team-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--sh1);
+      border: 1px solid rgba(168,108,48,.07);
+      transition: transform .25s, box-shadow .25s;
+    }
+    .team-card:hover { transform: translateY(-3px); box-shadow: var(--sh2); }
+
+    .card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+    .card-av { width:50px; height:50px; border-radius:50%; overflow:hidden; flex-shrink:0; }
+    .card-av svg { width:100%; height:100%; display:block; }
+    .card-name { font-size: 15px; font-weight: 700; }
+    .card-role { font-size: 10px; font-weight: 300; letter-spacing: .05em; color: var(--t3); margin-top: 2px; }
+
+    .card-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 10px; font-weight: 300; letter-spacing: .04em;
+      margin-bottom: 10px;
+    }
+
+    .card-tasks { list-style: none; margin-bottom: 12px; }
+    .card-tasks li {
+      font-size: 11px; font-weight: 300;
+      color: var(--t2);
+      padding: 2px 0;
+      display: flex; align-items: baseline; gap: 5px;
+    }
+    .card-tasks li::before { content: '·'; color: var(--point); font-size: 16px; line-height: .8; }
+
+    .card-suggest {
+      background: rgba(168,108,48,.05);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 11px; font-weight: 300;
+      color: var(--t2); line-height: 1.55;
+      margin-bottom: 12px;
+      min-height: 52px;
+      font-style: italic;
+    }
+    .card-suggest.loading { display: flex; align-items: center; gap: 6px; color: var(--t3); font-style: normal; }
+
+    .instruct-btn {
+      width: 100%;
+      padding: 8px;
+      background: var(--point);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 12px; font-weight: 400;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .instruct-btn:hover { background: #8a5520; }
+
+    /* ─── INSTRUCTION SECTION ────────────────────────── */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+    .member-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 11px 5px 7px;
+      border-radius: 18px;
+      border: 1.5px solid rgba(168,108,48,.2);
+      background: transparent;
+      font-size: 11px; font-weight: 300;
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .member-chip .chip-av { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; }
+    .member-chip .chip-av svg { width: 100%; height: 100%; display: block; }
+    .member-chip:hover { border-color: var(--point); color: var(--point); }
+    .member-chip.active { background: var(--point); border-color: var(--point); color: #fff; }
+
+    .qcmds-lbl { font-size: 10px; font-weight: 300; letter-spacing: .08em; color: var(--t3); margin-bottom: 7px; }
+    .qcmds-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .qcmd {
+      padding: 5px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(168,108,48,.18);
+      background: var(--card);
+      font-size: 11px; font-weight: 300;
+      color: var(--t2);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .qcmd:hover { border-color: var(--point); background: rgba(168,108,48,.05); color: var(--point); }
+
+    .instr-box {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1.5px solid rgba(168,108,48,.15);
+      padding: 14px 16px;
+      margin-bottom: 11px;
+      box-shadow: var(--sh1);
+    }
+    .instr-ta {
+      width: 100%;
+      min-height: 110px;
+      border: none; background: transparent;
+      font-size: 13px; font-weight: 300;
+      color: var(--t1); resize: none; outline: none;
+      line-height: 1.75;
+    }
+    .instr-ta::placeholder { color: var(--t3); }
+
+    .instr-actions { display: flex; justify-content: flex-end; }
+    .send-btn {
+      padding: 9px 22px;
+      background: var(--point); color: #fff;
+      border: none; border-radius: 18px;
+      font-size: 12px; font-weight: 400;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .send-btn:hover:not(:disabled) { background: #8a5520; transform: translateY(-1px); box-shadow: var(--sh2); }
+    .send-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ─── KANBAN ─────────────────────────────────────── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      min-height: calc(100vh - 180px);
+    }
+
+    .k-col {
+      background: rgba(168,108,48,.04);
+      border-radius: 14px;
+      padding: 11px;
+      min-height: 300px;
+      transition: background .2s;
+    }
+    .k-col.drag-over { background: rgba(168,108,48,.09); }
+
+    .k-col-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 4px;
+      margin-bottom: 10px;
+    }
+    .k-col-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .05em;
+      color: var(--t2);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .k-col-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .k-count {
+      font-size: 10px; font-weight: 300;
+      color: var(--t3);
+      background: rgba(168,108,48,.1);
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .k-card {
+      background: var(--card);
+      border-radius: 11px;
+      padding: 12px;
+      margin-bottom: 7px;
+      box-shadow: var(--sh1);
+      border: 1px solid rgba(168,108,48,.07);
+      cursor: pointer;
+      transition: all .2s;
+      user-select: none;
+    }
+    .k-card:hover { box-shadow: var(--sh2); transform: translateY(-2px); }
+    .k-card.dragging { opacity: .5; }
+
+    .k-card-title { font-size: 12px; font-weight: 400; color: var(--t1); margin-bottom: 8px; line-height: 1.4; }
+    .k-card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .k-tag {
+      font-size: 10px; font-weight: 300;
+      padding: 2px 7px;
+      border-radius: 7px;
+    }
+    .k-av { width: 19px; height: 19px; border-radius: 50%; overflow: hidden; }
+    .k-av svg { width: 100%; height: 100%; display: block; }
+    .blocked-tag {
+      font-size: 10px;
+      color: var(--coral); background: rgba(232,120,85,.1);
+      padding: 2px 7px; border-radius: 7px;
+    }
+
+    .k-add {
+      width: 100%;
+      padding: 7px;
+      background: transparent;
+      border: 1.5px dashed rgba(168,108,48,.2);
+      border-radius: 9px;
+      font-size: 11px; font-weight: 300; color: var(--t3);
+      cursor: pointer;
+      transition: all .2s;
+      margin-top: 3px;
+    }
+    .k-add:hover { border-color: var(--point); color: var(--point); background: rgba(168,108,48,.04); }
+
+    /* ─── REPORT ─────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: var(--sh1);
+      border: 1px solid rgba(168,108,48,.07);
+    }
+    .stat-num { font-size: 30px; font-weight: 700; color: var(--point); margin-bottom: 3px; }
+    .stat-lbl { font-size: 11px; font-weight: 300; letter-spacing: .05em; color: var(--t3); }
+
+    .report-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: var(--sh1);
+      border: 1px solid rgba(168,108,48,.07);
+    }
+    .report-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .report-av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; }
+    .report-av svg { width: 100%; height: 100%; display: block; }
+    .report-body {
+      font-size: 13px; font-weight: 300; line-height: 1.85;
+      color: var(--t2); white-space: pre-wrap;
+      min-height: 60px;
+    }
+    .gen-btn {
+      margin-top: 14px;
+      padding: 9px 22px;
+      background: var(--point); color: #fff;
+      border: none; border-radius: 18px;
+      font-size: 12px; cursor: pointer;
+      transition: all .2s;
+    }
+    .gen-btn:hover:not(:disabled) { background: #8a5520; }
+    .gen-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ─── MODALS ─────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(61,46,30,.3);
+      backdrop-filter: blur(5px);
+      z-index: 500;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: 18px;
+      width: 100%; max-width: 660px;
+      max-height: 82vh;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      box-shadow: var(--sh3);
+      animation: modalIn .25s ease;
+    }
+    @keyframes modalIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    .modal-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid rgba(168,108,48,.1);
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    .modal-av { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; }
+    .modal-av svg { width: 100%; height: 100%; display: block; }
+    .modal-ttl { flex: 1; }
+    .modal-ttl h3 { font-size: 15px; font-weight: 700; }
+    .modal-ttl p { font-size: 11px; font-weight: 300; color: var(--t3); margin-top: 1px; }
+    .modal-close {
+      width: 30px; height: 30px;
+      border-radius: 50%; border: none;
+      background: rgba(168,108,48,.1);
+      color: var(--t2); font-size: 14px;
+      cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: rgba(168,108,48,.2); }
+
+    .modal-body { flex: 1; overflow-y: auto; padding: 22px; }
+    .result-body {
+      font-size: 13px; font-weight: 300; line-height: 1.85;
+      color: var(--t2); white-space: pre-wrap;
+    }
+    .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px; color: var(--t3); font-size: 13px; font-weight: 300; }
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(168,108,48,.15); border-top-color: var(--point); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Project modal */
+    .proj-form { display: flex; flex-direction: column; gap: 14px; }
+    .f-group { display: flex; flex-direction: column; gap: 5px; }
+    .f-label { font-size: 11px; font-weight: 300; letter-spacing: .05em; color: var(--t2); }
+    .f-input, .f-select, .f-ta {
+      padding: 9px 13px;
+      border-radius: 9px;
+      border: 1.5px solid rgba(168,108,48,.18);
+      background: var(--bg);
+      font-size: 13px; font-weight: 300;
+      color: var(--t1); outline: none;
+      transition: border-color .2s;
+    }
+    .f-input:focus, .f-select:focus, .f-ta:focus { border-color: var(--point); }
+    .f-ta { resize: none; }
+
+    /* Kanban card detail */
+    .card-detail { display: flex; flex-direction: column; gap: 12px; }
+    .cd-row { display: flex; gap: 10px; }
+    .cd-stage {
+      padding: 4px 12px; border-radius: 10px;
+      font-size: 11px; font-weight: 300;
+      background: rgba(168,108,48,.1); color: var(--point);
+      cursor: pointer; border: none;
+      transition: all .2s;
+    }
+    .cd-stage:hover { background: var(--point); color: #fff; }
+    .cd-draft { font-size: 13px; font-weight: 300; color: var(--t2); line-height: 1.8; white-space: pre-wrap; }
+
+    /* ─── MOBILE ─────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar {
+        top: auto; bottom: 0; left: 0; right: 0;
+        width: 100%; height: 60px;
+        flex-direction: row; justify-content: center;
+        padding: 0 14px;
+        border-right: none;
+        border-top: 1px solid rgba(168,108,48,.1);
+      }
+      .sb-logo { display: none; }
+      .sb-divider { display: none; }
+      .sb-avatar::after { display: none; }
+      .main { margin-left: 0; padding-bottom: 60px; }
+      .kanban-board { grid-template-columns: 1fr 1fr; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .team-grid { grid-template-columns: 1fr; }
+      .tb-nav { display: none; }
+    }
+    @media (max-width: 520px) {
+      .kanban-board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo" onclick="navigate('home')" title="NORIHOW STUDIO">NR</div>
+  <div class="sb-divider"></div>
+  <!-- avatars injected by JS -->
+</aside>
+
+<!-- ═══ MAIN ═══════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="tb-title">
+      <h1 id="page-title">NORIHOW STUDIO</h1>
+      <div class="tb-date" id="date-display"></div>
+    </div>
+    <nav class="tb-nav">
+      <button class="nav-btn active" data-sec="home">홈</button>
+      <button class="nav-btn" data-sec="instruct">지시창</button>
+      <button class="nav-btn" data-sec="kanban">프로젝트</button>
+      <button class="nav-btn" data-sec="report">리포트</button>
+    </nav>
+    <button class="new-btn" id="open-new-project">+ 새 프로젝트</button>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- API KEY BANNER -->
+    <div class="api-banner" id="api-banner">
+      Claude API 키를 입력해야 AI 기능을 사용할 수 있어요.
+      <div class="api-banner-row">
+        <input type="password" class="api-key-input" id="api-key-input" placeholder="sk-ant-..." />
+        <button class="api-key-save" onclick="saveApiKey()">저장</button>
+      </div>
+    </div>
+
+    <!-- ── HOME ── -->
+    <section id="sec-home" class="section active">
+      <div class="briefing" id="briefing">
+        <div class="briefing-head">
+          <span class="briefing-icon">✦</span>
+          <span class="briefing-lbl">AI 브리핑</span>
+        </div>
+        <div class="briefing-body" id="briefing-body">
+          <div class="loading-dots">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <span style="font-size:12px;margin-left:4px;">팀 현황을 분석하고 있어요…</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dept-tabs" id="home-tabs">
+        <button class="dept-tab active" data-dept="all">전체</button>
+        <button class="dept-tab" data-dept="content">📱 콘텐츠팀</button>
+        <button class="dept-tab" data-dept="dev">🌱 개발팀</button>
+        <button class="dept-tab" data-dept="career">💼 커리어팀</button>
+      </div>
+
+      <div class="team-grid" id="team-grid"></div>
+    </section>
+
+    <!-- ── INSTRUCT ── -->
+    <section id="sec-instruct" class="section">
+      <p class="section-label">지시창 — 팀원을 선택하고 작업을 지시하세요</p>
+      <div class="chip-row" id="chip-row"></div>
+      <div class="qcmds-lbl">빠른 지시</div>
+      <div class="qcmds-row" id="qcmds-row"></div>
+      <div class="instr-box">
+        <textarea class="instr-ta" id="instr-ta" placeholder="팀원에게 작업을 지시하세요…"></textarea>
+      </div>
+      <div class="instr-actions">
+        <button class="send-btn" id="send-btn">지시하기 →</button>
+      </div>
+    </section>
+
+    <!-- ── KANBAN ── -->
+    <section id="sec-kanban" class="section">
+      <div class="dept-tabs" id="kanban-tabs">
+        <button class="dept-tab active" data-kfilter="all">전체</button>
+        <button class="dept-tab" data-kfilter="content">📱 콘텐츠팀</button>
+        <button class="dept-tab" data-kfilter="dev">🌱 개발팀</button>
+        <button class="dept-tab" data-kfilter="career">💼 커리어팀</button>
+      </div>
+      <div class="kanban-board" id="kanban-board"></div>
+    </section>
+
+    <!-- ── REPORT ── -->
+    <section id="sec-report" class="section">
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="report-card">
+        <div class="report-head">
+          <div class="report-av" id="report-av"></div>
+          <div>
+            <div style="font-size:14px;font-weight:700">솔의 주간 리포트</div>
+            <div style="font-size:11px;font-weight:300;color:var(--t3);margin-top:2px">이번 주 업무 정리 + 다음 주 방향 제안</div>
+          </div>
+        </div>
+        <div class="report-body" id="report-body">주간 리포트를 생성하려면 버튼을 눌러주세요.</div>
+        <button class="gen-btn" id="gen-report-btn" onclick="generateReport()">리포트 생성하기</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══ MODALS ═══════════════════════════════════════ -->
+
+<!-- Result modal -->
+<div class="overlay" id="result-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-av" id="rm-av"></div>
+      <div class="modal-ttl">
+        <h3 id="rm-name"></h3>
+        <p id="rm-role"></p>
+      </div>
+      <button class="modal-close" onclick="closeModal('result-overlay')">✕</button>
+    </div>
+    <div class="modal-body"><div id="rm-content"></div></div>
+  </div>
+</div>
+
+<!-- New project modal -->
+<div class="overlay" id="newproj-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-ttl">
+        <h3>새 프로젝트 추가</h3>
+        <p>AI가 단계별 할 일을 자동 생성합니다</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('newproj-overlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="proj-form">
+        <div class="f-group">
+          <label class="f-label">프로젝트 이름</label>
+          <input class="f-input" id="np-title" placeholder="예: 레지오 에밀리아 카드뉴스 시리즈" />
+        </div>
+        <div class="f-group">
+          <label class="f-label">담당 팀</label>
+          <select class="f-select" id="np-team">
+            <option value="content">📱 콘텐츠팀</option>
+            <option value="dev">🌱 개발팀</option>
+            <option value="career">💼 커리어팀</option>
+          </select>
+        </div>
+        <div class="f-group">
+          <label class="f-label">설명 (선택)</label>
+          <textarea class="f-ta" id="np-desc" rows="3" placeholder="프로젝트에 대해 간략히 설명해주세요…"></textarea>
+        </div>
+        <button class="send-btn" id="np-create-btn" style="justify-content:center" onclick="createProject()">
+          프로젝트 생성하기
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Card detail modal -->
+<div class="overlay" id="card-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-ttl">
+        <h3 id="cd-title"></h3>
+        <p id="cd-status"></p>
+      </div>
+      <button class="modal-close" onclick="closeModal('card-overlay')">✕</button>
+    </div>
+    <div class="modal-body" id="cd-body"></div>
+  </div>
+</div>
+
+<!-- ═══ SCRIPT ═════════════════════════════════════════ -->
+<script>
+/* ─── CONFIG ──────────────────────────────────────── */
+let API_KEY = ''; // 여기에 API 키 입력 (또는 배너에서 입력)
+const MODEL  = 'claude-sonnet-4-20250514';
+const API_URL = 'https://api.anthropic.com/v1/messages';
+
+/* ─── SVG AVATARS ─────────────────────────────────── */
+const AVATARS = {
+
+/* 리나 – 핑크 번 머리, 콘텐츠 크리에이터 */
+lina: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#FFE8F0"/>
+  <circle cx="50" cy="22" r="20" fill="#FF7FAA"/>
+  <circle cx="30" cy="30" r="13" fill="#FF7FAA"/>
+  <circle cx="70" cy="30" r="13" fill="#FF7FAA"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="32" rx="22" ry="11" fill="#FF7FAA"/>
+  <circle cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#FF9AB0" opacity=".5"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#FF9AB0" opacity=".5"/>
+  <path d="M44 65 Q50 71 56 65" stroke="#C4826E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#FF6B8A"/>
+  <rect x="62" y="56" width="11" height="15" rx="3" fill="#FF4E8D" stroke="white" stroke-width="1.5"/>
+  <rect x="64" y="59" width="7" height="7" rx="1.5" fill="white" opacity=".6"/>
+</svg>`,
+
+/* 하나 – 보라 단발, 안경, 마케팅 분석가 */
+hana: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#EDE8F8"/>
+  <ellipse cx="50" cy="34" rx="26" ry="22" fill="#7B5EA7"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="30" rx="24" ry="11" fill="#7B5EA7"/>
+  <rect x="24" y="36" width="9" height="26" rx="4.5" fill="#7B5EA7"/>
+  <rect x="67" y="36" width="9" height="26" rx="4.5" fill="#7B5EA7"/>
+  <rect x="32" y="46" width="14" height="10" rx="4" fill="none" stroke="#9B7ABF" stroke-width="2"/>
+  <rect x="54" y="46" width="14" height="10" rx="4" fill="none" stroke="#9B7ABF" stroke-width="2"/>
+  <line x1="46" y1="51" x2="54" y2="51" stroke="#9B7ABF" stroke-width="2"/>
+  <line x1="32" y1="51" x2="28" y2="49" stroke="#9B7ABF" stroke-width="1.5"/>
+  <line x1="68" y1="51" x2="72" y2="49" stroke="#9B7ABF" stroke-width="1.5"/>
+  <circle cx="39" cy="51" r="3.2" fill="#2C1810"/>
+  <circle cx="61" cy="51" r="3.2" fill="#2C1810"/>
+  <circle cx="40" cy="50" r="1.1" fill="white"/>
+  <circle cx="62" cy="50" r="1.1" fill="white"/>
+  <ellipse cx="32" cy="59" rx="4.5" ry="3" fill="#C49AB0" opacity=".4"/>
+  <ellipse cx="68" cy="59" rx="4.5" ry="3" fill="#C49AB0" opacity=".4"/>
+  <path d="M43 65 Q50 70 57 65" stroke="#C4826E" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#5A3F80"/>
+</svg>`,
+
+/* 아라 – 코랄 웨이브 헤어, 비주얼 디렉터 */
+ara: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#FFF0E8"/>
+  <ellipse cx="50" cy="30" rx="27" ry="24" fill="#E8683A"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="31" rx="24" ry="11" fill="#E8683A"/>
+  <ellipse cx="26" cy="45" rx="8" ry="18" fill="#E8683A"/>
+  <ellipse cx="74" cy="45" rx="8" ry="18" fill="#E8683A"/>
+  <path d="M27 55 Q22 62 26 70" stroke="#E8683A" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M73 55 Q78 62 74 70" stroke="#E8683A" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <circle cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#F0A090" opacity=".5"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#F0A090" opacity=".5"/>
+  <path d="M44 65 Q50 71 56 65" stroke="#C4826E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#D45A30"/>
+  <circle cx="28" cy="62" r="4" fill="#FFA060" stroke="white" stroke-width="1.5"/>
+  <circle cx="23" cy="67" r="3" fill="#FF7A40" stroke="white" stroke-width="1.5"/>
+  <circle cx="29" cy="70" r="2.5" fill="#FF4A20" stroke="white" stroke-width="1.5"/>
+</svg>`,
+
+/* 코코 – 세이지 그린 단발, 개발자 */
+coco: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#E8F5EC"/>
+  <ellipse cx="50" cy="30" rx="26" ry="22" fill="#5A9A6A"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="31" rx="24" ry="11" fill="#5A9A6A"/>
+  <rect x="24" y="37" width="8" height="24" rx="4" fill="#5A9A6A"/>
+  <rect x="68" y="37" width="8" height="24" rx="4" fill="#5A9A6A"/>
+  <rect x="26" y="28" width="48" height="10" rx="5" fill="#5A9A6A"/>
+  <circle cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#90C4A0" opacity=".5"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#90C4A0" opacity=".5"/>
+  <path d="M44 65 Q50 70 56 65" stroke="#C4826E" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#4A8A5A"/>
+  <text x="39" y="62" font-size="10" fill="#4A8A5A" font-family="monospace">&lt;/&gt;</text>
+</svg>`,
+
+/* 나무 – 틸 긴 머리, 잎사귀 크라운, 교육연구 */
+namu: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#E8F5F4"/>
+  <ellipse cx="50" cy="38" rx="26" ry="30" fill="#2A8A86"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#F5E0C5"/>
+  <ellipse cx="50" cy="30" rx="24" ry="10" fill="#2A8A86"/>
+  <ellipse cx="25" cy="52" rx="7" ry="22" fill="#2A8A86"/>
+  <ellipse cx="75" cy="52" rx="7" ry="22" fill="#2A8A86"/>
+  <ellipse cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <ellipse cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#70C4B8" opacity=".4"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#70C4B8" opacity=".4"/>
+  <path d="M44 65 Q50 70 56 65" stroke="#C4826E" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#F5E0C5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#1A7A76"/>
+  <!-- leaf crown -->
+  <ellipse cx="38" cy="24" rx="7" ry="4" fill="#4AAA60" transform="rotate(-30 38 24)"/>
+  <ellipse cx="50" cy="20" rx="7" ry="4" fill="#5ABA70"/>
+  <ellipse cx="62" cy="24" rx="7" ry="4" fill="#4AAA60" transform="rotate(30 62 24)"/>
+  <ellipse cx="31" cy="28" rx="5" ry="3" fill="#6ACA80" transform="rotate(-50 31 28)"/>
+  <ellipse cx="69" cy="28" rx="5" ry="3" fill="#6ACA80" transform="rotate(50 69 28)"/>
+</svg>`,
+
+/* 솔 – 골든 단발, 커리어 전문가 */
+sol: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#E8F4FF"/>
+  <ellipse cx="50" cy="32" rx="26" ry="22" fill="#D4A030"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="31" rx="24" ry="11" fill="#D4A030"/>
+  <rect x="24" y="37" width="8" height="24" rx="4" fill="#D4A030"/>
+  <rect x="68" y="37" width="8" height="24" rx="4" fill="#D4A030"/>
+  <path d="M24 57 Q20 66 24 73" stroke="#D4A030" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M76 57 Q80 66 76 73" stroke="#D4A030" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <circle cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#FFB870" opacity=".5"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#FFB870" opacity=".5"/>
+  <path d="M44 65 Q50 71 56 65" stroke="#C4826E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#4A90D5"/>
+  <polygon points="50,18 52,23 57,23 53,26 55,31 50,28 45,31 47,26 43,23 48,23" fill="#FFD060" stroke="#F0A020" stroke-width=".5"/>
+</svg>`,
+
+/* 도도 – 바이올렛 스타일 헤어, 브랜드 전략가 */
+dodo: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="50" fill="#F0EEF8"/>
+  <ellipse cx="50" cy="28" rx="28" ry="22" fill="#7060BF"/>
+  <ellipse cx="50" cy="55" rx="24" ry="27" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="30" rx="24" ry="11" fill="#7060BF"/>
+  <rect x="22" y="34" width="9" height="28" rx="4.5" fill="#7060BF"/>
+  <rect x="69" y="34" width="9" height="28" rx="4.5" fill="#7060BF"/>
+  <ellipse cx="26" cy="35" rx="8" ry="5" fill="#8070CF" transform="rotate(-20 26 35)"/>
+  <ellipse cx="74" cy="35" rx="8" ry="5" fill="#8070CF" transform="rotate(20 74 35)"/>
+  <path d="M35 22 Q50 15 65 22" stroke="#9080DF" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <circle cx="40" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="60" cy="52" r="4.5" fill="#2C1810"/>
+  <circle cx="41.5" cy="50.5" r="1.6" fill="white"/>
+  <circle cx="61.5" cy="50.5" r="1.6" fill="white"/>
+  <ellipse cx="33" cy="59" rx="5" ry="3.5" fill="#C0A0E0" opacity=".5"/>
+  <ellipse cx="67" cy="59" rx="5" ry="3.5" fill="#C0A0E0" opacity=".5"/>
+  <path d="M44 65 Q50 71 56 65" stroke="#C4826E" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <rect x="43" y="80" width="14" height="12" rx="4" fill="#FDDCB5"/>
+  <ellipse cx="50" cy="95" rx="22" ry="10" fill="#6050AF"/>
+  <polygon points="50,20 51.5,25 57,25 52.5,28 54,33 50,30 46,33 47.5,28 43,25 48.5,25" fill="#FFE060" stroke="#D4B020" stroke-width=".5"/>
+  <circle cx="50" cy="26" r="2" fill="#FFD040"/>
+</svg>`,
+
+};
+
+/* ─── TEAM MEMBERS DATA ───────────────────────────── */
+const MEMBERS = [
+  {
+    id: 'lina', name: '리나', avatar: AVATARS.lina,
+    dept: 'content', deptLabel: '📱 콘텐츠팀',
+    role: '인스타 콘텐츠 제작',
+    color: '#e8748a', bg: 'rgba(232,116,138,.12)',
+    tasks: ['카드뉴스·릴스 제작', '캡션 및 해시태그 작성', '콘텐츠 아이디어 발굴', '게시물 시리즈 기획'],
+    quickCmds: ['카드뉴스 아이디어 5개 주세요', '릴스 스크립트 작성해주세요', '이번 주 캡션 초안 써주세요', '해시태그 30개 뽑아주세요'],
+    systemPrompt: `당신은 리나입니다. @NORIHOW_ 인스타그램 콘텐츠 전문가로, 유아교육 특화 카드뉴스·릴스·캡션·해시태그를 제작합니다. 저장률과 팔로워 공감을 최우선으로 합니다. 미니님은 유치원 교사 7년 경력, 레지오 에밀리아 철학 기반 놀이 중심 교육 전문가입니다.`
+  },
+  {
+    id: 'hana', name: '하나', avatar: AVATARS.hana,
+    dept: 'content', deptLabel: '📱 콘텐츠팀',
+    role: '마케팅 분석',
+    color: '#9b5a7a', bg: 'rgba(155,90,122,.12)',
+    tasks: ['계정 성과 분석', '콘텐츠 트렌드 연구', '성장 전략 수립', '경쟁 계정 벤치마킹'],
+    quickCmds: ['이번 달 콘텐츠 전략 세워주세요', '팔로워 증가 전략 분석해주세요', '최적 게시 시간 알려주세요', '유아교육 콘텐츠 트렌드 분석해주세요'],
+    systemPrompt: `당신은 하나입니다. @NORIHOW_ 마케팅 분석가로, 데이터 기반 콘텐츠 전략을 수립합니다. 유아교육 콘텐츠 트렌드와 계정 성장 전략을 분석합니다. 미니님은 유치원 교사 7년 경력, 레지오 에밀리아 철학 기반 놀이 중심 교육 전문가입니다.`
+  },
+  {
+    id: 'ara', name: '아라', avatar: AVATARS.ara,
+    dept: 'content', deptLabel: '📱 콘텐츠팀',
+    role: '비주얼 디렉션',
+    color: '#e87855', bg: 'rgba(232,120,85,.12)',
+    tasks: ['색감·레이아웃 디렉션', '브랜드 일관성 관리', '피드 비주얼 설계', '디자인 레퍼런스 큐레이션'],
+    quickCmds: ['피드 색감 팔레트 만들어주세요', '카드뉴스 레이아웃 방향 잡아주세요', '브랜드 가이드라인 점검해주세요', '썸네일 컨셉 제안해주세요'],
+    systemPrompt: `당신은 아라입니다. @NORIHOW_ 비주얼 디렉터로, 디자인 방향·색감·레이아웃·브랜드 일관성을 담당합니다. 미니님은 유치원 교사 7년 경력, 레지오 에밀리아 철학 기반 놀이 중심 교육 전문가입니다.`
+  },
+  {
+    id: 'coco', name: '코코', avatar: AVATARS.coco,
+    dept: 'dev', deptLabel: '🌱 개발팀',
+    role: '교육 앱 개발',
+    color: '#6a9e7a', bg: 'rgba(106,158,122,.12)',
+    tasks: ['HTML/CSS/JS 웹앱 제작', '아이디어 → 코드 변환', '교육용 인터랙티브 앱', '기획서 작성'],
+    quickCmds: ['유아 교육 앱 기획서 써주세요', '놀이 활동 기록 앱 만들어주세요', 'HTML 앱 코드 작성해주세요', '아이디어를 앱으로 구현해주세요'],
+    systemPrompt: `당신은 코코입니다. 유아교육 앱 개발 전문가로, HTML/CSS/JS 단일파일 웹앱을 만듭니다. 기획서 작성부터 실제 코드 생성까지 담당합니다. 미니님은 유치원 교사 7년 경력, 레지오 에밀리아 철학 기반 놀이 중심 교육 전문가입니다.`
+  },
+  {
+    id: 'namu', name: '나무', avatar: AVATARS.namu,
+    dept: 'dev', deptLabel: '🌱 개발팀',
+    role: '교육과정 연구',
+    color: '#3a9e9a', bg: 'rgba(58,158,154,.12)',
+    tasks: ['누리과정 연계 수업 설계', '레지오 에밀리아 프로젝트', '발달심리학 기반 활동', '교육 근거 자료 제공'],
+    quickCmds: ['누리과정 연계 수업안 짜주세요', '레지오 에밀리아 프로젝트 설계해주세요', '발달 단계별 활동 제안해주세요', '교육적 근거 자료 찾아주세요'],
+    systemPrompt: `당신은 나무입니다. 유아교육과정 연구 전문가로, 누리과정·레지오 에밀리아·발달심리학을 기반으로 교육적 근거를 제시하고 수업 아이디어를 앱으로 연결합니다. 미니님은 유치원 교사 7년 경력, 레지오 에밀리아 철학 기반 놀이 중심 교육 전문가입니다.`
+  },
+  {
+    id: 'sol', name: '솔', avatar: AVATARS.sol,
+    dept: 'career', deptLabel: '💼 커리어팀',
+    role: '취업 준비',
+    color: '#4a9ed5', bg: 'rgba(74,158,213,.12)',
+    tasks: ['공고 분석 및 매칭', '자기소개서 작성', '면접 질문 준비', '강점 포트폴리오 정리'],
+    quickCmds: ['그레이트북스 자소서 써주세요', '원더원 면접 준비해주세요', '나의 강점 정리해주세요', '이직 전략 세워주세요'],
+    systemPrompt: `당신은 솔입니다. 취업 전략 전문가로, 미니님(유치원 교사 7년·@NORIHOW_ 운영·교육 웹앱 개발·수상경력)의 강점을 살린 자소서·면접 준비를 돕습니다. 현재 그레이트북스 책육아연구소 / 원더원 취업 준비 중입니다.`
+  },
+  {
+    id: 'dodo', name: '도도', avatar: AVATARS.dodo,
+    dept: 'career', deptLabel: '💼 커리어팀',
+    role: '브랜드 전략',
+    color: '#7a6abf', bg: 'rgba(122,106,191,.12)',
+    tasks: ['퍼스널 브랜딩 전략', '중장기 커리어 로드맵', '온라인 프레즌스 관리', '강점 포지셔닝'],
+    quickCmds: ['퍼스널 브랜드 점검해주세요', '6개월 커리어 로드맵 그려주세요', '강점 포지셔닝 전략 세워주세요', '온라인 프레즌스 전략 짜주세요'],
+    systemPrompt: `당신은 도도입니다. 퍼스널 브랜드 전략가로, 유아교사·콘텐츠 크리에이터·에듀테크 개발자로서 미니님의 통합적 브랜딩과 중장기 커리어 전략을 수립합니다.`
+  },
+];
+
+/* ─── INITIAL PROJECTS ────────────────────────────── */
+const INITIAL_PROJECTS = [
+  { id: 1, title: '레지오 에밀리아 카드뉴스 시리즈', dept: 'content', stage: '작업중', member: 'lina', blocked: false, tasks: [] },
+  { id: 2, title: '유아 감정 표현 놀이 앱 v2',       dept: 'dev',     stage: '아이디어', member: 'coco', blocked: false, tasks: [] },
+  { id: 3, title: '그레이트북스 자기소개서',           dept: 'career',  stage: '작업중',  member: 'sol',  blocked: true,  tasks: [] },
+  { id: 4, title: '@NORIHOW_ 2분기 콘텐츠 전략',     dept: 'content', stage: '검토',    member: 'hana', blocked: false, tasks: [] },
+  { id: 5, title: '누리과정 연계 수업 자료 앱',        dept: 'dev',     stage: '아이디어', member: 'namu', blocked: false, tasks: [] },
+  { id: 6, title: '퍼스널 브랜딩 포트폴리오',         dept: 'career',  stage: '완료',    member: 'dodo', blocked: false, tasks: [] },
+];
+
+const STAGES = ['아이디어', '작업중', '검토', '완료'];
+
+/* ─── STATE ───────────────────────────────────────── */
+const S = {
+  section: 'home',
+  selectedMember: MEMBERS[0],
+  projects: JSON.parse(JSON.stringify(INITIAL_PROJECTS)),
+  homeFilter: 'all',
+  kanbanFilter: 'all',
+  suggestions: {},         // memberId -> suggestion text
+  suggestionsLoading: {},  // memberId -> bool
+  briefingLoaded: false,
+  reportText: '',
+  nextId: INITIAL_PROJECTS.length + 1,
+};
+
+/* ─── HELPERS ─────────────────────────────────────── */
+function getMember(id) { return MEMBERS.find(m => m.id === id); }
+function getStageColor(stage) {
+  return { '아이디어':'#e87855', '작업중':'#e8c055', '검토':'#6a9e7a', '완료':'#7a6abf' }[stage] || '#b0a090';
+}
+
+/* ─── CLAUDE API ──────────────────────────────────── */
+async function callClaude(systemPrompt, userMsg, maxTokens = 512) {
+  const key = API_KEY || (window._apiKey || '');
+  if (!key) throw new Error('API_KEY_MISSING');
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }],
+    }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  const d = await r.json();
+  return d.content[0].text;
+}
+
+async function callClaudeStream(systemPrompt, userMsg, onChunk, maxTokens = 1200) {
+  const key = API_KEY || (window._apiKey || '');
+  if (!key) throw new Error('API_KEY_MISSING');
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: MODEL, max_tokens: maxTokens, stream: true,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }],
+    }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${r.status}`);
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = dec.decode(value);
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      try {
+        const p = JSON.parse(data);
+        if (p.type === 'content_block_delta' && p.delta?.text) onChunk(p.delta.text);
+      } catch {}
+    }
+  }
+}
+
+/* ─── API KEY HELPERS ─────────────────────────────── */
+function checkApiKey() {
+  const key = API_KEY || window._apiKey || '';
+  document.getElementById('api-banner').classList.toggle('show', !key);
+}
+
+function saveApiKey() {
+  const v = document.getElementById('api-key-input').value.trim();
+  if (!v) return;
+  window._apiKey = v;
+  checkApiKey();
+  loadBriefing();
+  loadAllSuggestions();
+}
+
+/* ─── NAVIGATION ──────────────────────────────────── */
+function navigate(sec) {
+  S.section = sec;
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+  document.getElementById('sec-' + sec)?.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.sec === sec));
+
+  if (sec === 'home') renderTeamGrid();
+  if (sec === 'instruct') renderInstruct();
+  if (sec === 'kanban') renderKanban();
+  if (sec === 'report') renderReport();
+}
+
+/* ─── DATE DISPLAY ────────────────────────────────── */
+function renderDate() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  const s = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  document.getElementById('date-display').textContent = s;
+}
+
+/* ─── SIDEBAR ─────────────────────────────────────── */
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  const existing = sb.querySelectorAll('.sb-avatar, .sb-divider:not(:first-of-type)');
+  existing.forEach(e => e.remove());
+
+  let lastDept = null;
+  MEMBERS.forEach(m => {
+    if (m.dept !== lastDept) {
+      if (lastDept !== null) {
+        const div = document.createElement('div');
+        div.className = 'sb-divider';
+        sb.appendChild(div);
+      }
+      lastDept = m.dept;
+    }
+    const av = document.createElement('div');
+    av.className = 'sb-avatar' + (S.selectedMember?.id === m.id ? ' active' : '');
+    av.setAttribute('data-name', m.name);
+    av.setAttribute('data-id', m.id);
+    av.innerHTML = m.avatar;
+    av.addEventListener('click', () => {
+      S.selectedMember = m;
+      document.querySelectorAll('.sb-avatar').forEach(a => a.classList.remove('active'));
+      av.classList.add('active');
+      navigate('instruct');
+    });
+    sb.appendChild(av);
+  });
+}
+
+/* ─── BRIEFING ────────────────────────────────────── */
+async function loadBriefing() {
+  if (S.briefingLoaded) return;
+  const el = document.getElementById('briefing-body');
+  const projectSummary = S.projects.map(p => `${p.title}(${p.stage}${p.blocked ? '/막힘' : ''})`).join(', ');
+
+  const systemP = `당신은 NORIHOW STUDIO AI 매니저입니다. 미니님은 유치원 교사 7년 경력의 콘텐츠 크리에이터이자 에듀테크 개발자입니다. 팀 현황을 보고 따뜻하고 간결하게 브리핑하세요. 2-3문장으로 짧게, 구체적인 오늘의 포커스를 제안하세요.`;
+  const userMsg = `현재 프로젝트 현황: ${projectSummary}. 막힌 프로젝트가 있다면 언급하고, 오늘 집중할 방향을 제안해주세요.`;
+
+  el.innerHTML = '<div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="font-size:12px;margin-left:4px;">브리핑 작성 중…</span></div>';
+
+  try {
+    let text = '';
+    await callClaudeStream(systemP, userMsg, chunk => {
+      text += chunk;
+      el.textContent = text;
+    }, 300);
+    S.briefingLoaded = true;
+  } catch (e) {
+    if (e.message === 'API_KEY_MISSING') {
+      el.textContent = 'API 키를 입력하면 AI 브리핑이 자동으로 시작됩니다. ✦';
+    } else {
+      el.textContent = '브리핑 생성 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+      console.error(e);
+    }
+  }
+}
+
+/* ─── TEAM CARDS / SUGGESTIONS ───────────────────── */
+function renderTeamGrid() {
+  const grid = document.getElementById('team-grid');
+  const filtered = S.homeFilter === 'all' ? MEMBERS : MEMBERS.filter(m => m.dept === S.homeFilter);
+  grid.innerHTML = filtered.map(m => buildCard(m)).join('');
+  filtered.forEach(m => {
+    document.getElementById('instruct-btn-' + m.id)
+      ?.addEventListener('click', () => { S.selectedMember = m; navigate('instruct'); });
+  });
+}
+
+function buildCard(m) {
+  const sug = S.suggestions[m.id];
+  const loading = S.suggestionsLoading[m.id];
+  let sugHTML;
+  if (loading) {
+    sugHTML = `<div class="card-suggest loading"><div class="dot" style="background:var(--t3)"></div><div class="dot" style="background:var(--t3)"></div><div class="dot" style="background:var(--t3)"></div><span style="font-size:11px;margin-left:4px">제안 생성 중…</span></div>`;
+  } else if (sug) {
+    sugHTML = `<div class="card-suggest">"${sug}"</div>`;
+  } else {
+    sugHTML = `<div class="card-suggest" style="color:var(--t3);font-style:normal;display:flex;align-items:center;gap:4px"><span>✦</span> AI 제안 준비 중</div>`;
+  }
+
+  return `<div class="team-card">
+    <div class="card-head">
+      <div class="card-av">${m.avatar}</div>
+      <div>
+        <div class="card-name">${m.name}</div>
+        <div class="card-role">${m.role}</div>
+      </div>
+    </div>
+    <span class="card-badge" style="background:${m.bg};color:${m.color}">${m.deptLabel}</span>
+    <ul class="card-tasks">${m.tasks.map(t => `<li>${t}</li>`).join('')}</ul>
+    ${sugHTML}
+    <button class="instruct-btn" id="instruct-btn-${m.id}">지시하기 →</button>
+  </div>`;
+}
+
+async function loadAllSuggestions() {
+  const key = API_KEY || window._apiKey || '';
+  if (!key) return;
+  for (const m of MEMBERS) {
+    if (S.suggestions[m.id]) continue;
+    loadSuggestion(m);
+    await new Promise(r => setTimeout(r, 400)); // stagger
+  }
+}
+
+async function loadSuggestion(m) {
+  S.suggestionsLoading[m.id] = true;
+  if (S.section === 'home') renderTeamGrid();
+
+  const projectSummary = S.projects.filter(p => p.member === m.id).map(p => `${p.title}(${p.stage})`).join(', ') || '진행 중 프로젝트 없음';
+  const systemP = `당신은 ${m.name}입니다. ${m.role} 전문가입니다. 한 문장으로, 오늘 미니님에게 제안할 업무 아이디어를 구체적으로 말해주세요. 따옴표 없이 직접 제안만 말하세요.`;
+
+  try {
+    const text = await callClaude(systemP, `담당 프로젝트: ${projectSummary}. 오늘 한 가지 구체적인 제안을 해주세요.`, 120);
+    S.suggestions[m.id] = text.trim();
+  } catch (e) {
+    S.suggestions[m.id] = '오늘의 제안을 준비할게요!';
+  } finally {
+    S.suggestionsLoading[m.id] = false;
+    if (S.section === 'home') renderTeamGrid();
+  }
+}
+
+/* ─── INSTRUCT SECTION ────────────────────────────── */
+function renderInstruct() {
+  // chips
+  const chipRow = document.getElementById('chip-row');
+  chipRow.innerHTML = MEMBERS.map(m => `
+    <button class="member-chip ${S.selectedMember?.id === m.id ? 'active' : ''}" data-mid="${m.id}">
+      <div class="chip-av">${m.avatar}</div>
+      <span>${m.name}</span>
+    </button>
+  `).join('');
+  chipRow.querySelectorAll('.member-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.selectedMember = getMember(btn.dataset.mid);
+      renderInstruct();
+      renderSidebar();
+    });
+  });
+
+  // quick commands
+  const qrow = document.getElementById('qcmds-row');
+  const m = S.selectedMember;
+  qrow.innerHTML = m ? m.quickCmds.map(q => `<button class="qcmd">${q}</button>`).join('') : '';
+  qrow.querySelectorAll('.qcmd').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('instr-ta').value = btn.textContent;
+    });
+  });
+
+  // placeholder
+  const ta = document.getElementById('instr-ta');
+  ta.placeholder = m ? `${m.name}에게 지시할 내용을 입력하세요…` : '팀원을 선택하고 지시할 내용을 입력하세요…';
+}
+
+async function handleSend() {
+  const m = S.selectedMember;
+  const text = document.getElementById('instr-ta').value.trim();
+  if (!m || !text) return;
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = '처리 중…';
+
+  // open modal
+  document.getElementById('rm-av').innerHTML = m.avatar;
+  document.getElementById('rm-name').textContent = m.name;
+  document.getElementById('rm-role').textContent = m.role;
+  document.getElementById('rm-content').innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><span>${m.name}이(가) 작업 중…</span></div>`;
+  openModal('result-overlay');
+
+  try {
+    let result = '';
+    const contentEl = document.getElementById('rm-content');
+    contentEl.innerHTML = '<div class="result-body" id="stream-body"></div>';
+    const streamEl = document.getElementById('stream-body');
+
+    await callClaudeStream(m.systemPrompt, text, chunk => {
+      result += chunk;
+      streamEl.textContent = result;
+    }, 1400);
+  } catch (e) {
+    document.getElementById('rm-content').innerHTML = `<div class="result-body" style="color:#c45a30">오류가 발생했어요: ${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '지시하기 →';
+}
+
+/* ─── KANBAN ──────────────────────────────────────── */
+function renderKanban() {
+  const board = document.getElementById('kanban-board');
+  const filtered = S.kanbanFilter === 'all' ? S.projects : S.projects.filter(p => p.dept === S.kanbanFilter);
+
+  board.innerHTML = STAGES.map(stage => {
+    const cards = filtered.filter(p => p.stage === stage);
+    const color = getStageColor(stage);
+    return `
+    <div class="k-col" id="kcol-${stage}" data-stage="${stage}">
+      <div class="k-col-head">
+        <div class="k-col-title">
+          <div class="k-col-dot" style="background:${color}"></div>
+          ${stage}
+        </div>
+        <div class="k-count">${cards.length}</div>
+      </div>
+      ${cards.map(p => buildKCard(p)).join('')}
+      <button class="k-add" data-stage="${stage}">+ 추가</button>
+    </div>`;
+  }).join('');
+
+  // card clicks
+  board.querySelectorAll('.k-card').forEach(card => {
+    card.addEventListener('click', () => openCardDetail(parseInt(card.dataset.id)));
+  });
+
+  // add buttons
+  board.querySelectorAll('.k-add').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('np-title').value = '';
+      document.getElementById('np-desc').value = '';
+      openModal('newproj-overlay');
+    });
+  });
+
+  // drag and drop
+  board.querySelectorAll('.k-card').forEach(card => {
+    card.setAttribute('draggable', 'true');
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('cardId', card.dataset.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+
+  board.querySelectorAll('.k-col').forEach(col => {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id = parseInt(e.dataTransfer.getData('cardId'));
+      const stage = col.dataset.stage;
+      const proj = S.projects.find(p => p.id === id);
+      if (proj) {
+        const wasCompleted = proj.stage === '완료';
+        proj.stage = stage;
+        renderKanban();
+        if (stage === '완료' && !wasCompleted) suggestNextProject(proj);
+      }
+    });
+  });
+}
+
+function buildKCard(p) {
+  const m = getMember(p.member);
+  const tc = { content:'var(--rose)', dev:'var(--sage)', career:'var(--sky)' }[p.dept];
+  const tb = { content:'rgba(232,116,138,.12)', dev:'rgba(106,158,122,.12)', career:'rgba(74,158,213,.12)' }[p.dept];
+  const deptName = { content:'콘텐츠', dev:'개발', career:'커리어' }[p.dept];
+
+  return `<div class="k-card" data-id="${p.id}">
+    <div class="k-card-title">${p.title}</div>
+    <div class="k-card-meta">
+      <span class="k-tag" style="background:${tb};color:${tc}">${deptName}팀</span>
+      ${m ? `<div class="k-av">${m.avatar}</div>` : ''}
+      ${p.blocked ? '<span class="blocked-tag">막힘</span>' : ''}
+    </div>
+  </div>`;
+}
+
+async function openCardDetail(id) {
+  const p = S.projects.find(pr => pr.id === id);
+  if (!p) return;
+  const m = getMember(p.member);
+
+  document.getElementById('cd-title').textContent = p.title;
+  document.getElementById('cd-status').textContent = `${p.stage} · ${m?.name || ''} 담당`;
+
+  const stageButtons = STAGES.filter(s => s !== p.stage).map(s =>
+    `<button class="cd-stage" data-s="${s}" data-id="${id}">→ ${s}</button>`
+  ).join('');
+
+  let body = `<div class="card-detail">
+    <div class="cd-row">${stageButtons}</div>`;
+
+  if (p.blocked && m) {
+    body += `<div id="cd-draft-area"><div class="spinner-wrap"><div class="spinner"></div><span>${m.name}이(가) 초안을 작성 중…</span></div></div>`;
+  } else {
+    body += `<div id="cd-draft-area" style="color:var(--t3);font-size:12px;font-weight:300">클릭하면 담당 팀원이 도움을 드릴 수 있어요.</div>`;
+  }
+
+  body += `</div>`;
+  document.getElementById('cd-body').innerHTML = body;
+  openModal('card-overlay');
+
+  // stage change buttons
+  document.querySelectorAll('.cd-stage').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const proj = S.projects.find(pr => pr.id === parseInt(btn.dataset.id));
+      if (proj) {
+        proj.stage = btn.dataset.s;
+        closeModal('card-overlay');
+        if (S.section === 'kanban') renderKanban();
+        if (proj.stage === '완료') suggestNextProject(proj);
+      }
+    });
+  });
+
+  // auto draft if blocked
+  if (p.blocked && m) {
+    try {
+      let draft = '';
+      const draftEl = document.getElementById('cd-draft-area');
+      draftEl.innerHTML = '<div class="cd-draft" id="cd-draft-stream"></div>';
+      await callClaudeStream(
+        m.systemPrompt,
+        `프로젝트 "${p.title}"가 막혀있어요. 진행을 도울 수 있는 구체적인 초안이나 다음 단계를 작성해주세요.`,
+        chunk => {
+          draft += chunk;
+          const el = document.getElementById('cd-draft-stream');
+          if (el) el.textContent = draft;
+        }, 600
+      );
+      p.blocked = false;
+    } catch (e) {
+      const el = document.getElementById('cd-draft-area');
+      if (el) el.textContent = 'API 키를 설정하면 AI가 도움을 드릴 수 있어요.';
+    }
+  }
+}
+
+async function suggestNextProject(completedProj) {
+  const key = API_KEY || window._apiKey || '';
+  if (!key) return;
+  try {
+    const suggestion = await callClaude(
+      '당신은 NORIHOW STUDIO 프로젝트 매니저입니다. 한 문장으로 다음 프로젝트를 추천해주세요.',
+      `방금 "${completedProj.title}" 프로젝트가 완료됐어요. 다음으로 시작하면 좋을 프로젝트를 추천해주세요.`,
+      100
+    );
+    // Show as briefing update
+    const el = document.getElementById('briefing-body');
+    if (el && S.section === 'home') {
+      el.textContent = `"${completedProj.title}" 완료! ✦ 다음 추천: ${suggestion}`;
+    }
+  } catch {}
+}
+
+/* ─── REPORT ──────────────────────────────────────── */
+function renderReport() {
+  const sol = getMember('sol');
+  document.getElementById('report-av').innerHTML = sol?.avatar || '';
+
+  const stats = {
+    total: S.projects.length,
+    done: S.projects.filter(p => p.stage === '완료').length,
+    active: S.projects.filter(p => p.stage === '작업중').length,
+    idea: S.projects.filter(p => p.stage === '아이디어').length,
+  };
+
+  document.getElementById('stat-grid').innerHTML = [
+    { num: stats.total, lbl: '전체' },
+    { num: stats.active, lbl: '진행중' },
+    { num: stats.done, lbl: '완료' },
+    { num: stats.idea, lbl: '아이디어' },
+  ].map(s => `<div class="stat-card"><div class="stat-num">${s.num}</div><div class="stat-lbl">${s.lbl}</div></div>`).join('');
+}
+
+async function generateReport() {
+  const btn = document.getElementById('gen-report-btn');
+  btn.disabled = true;
+  btn.textContent = '작성 중…';
+
+  const el = document.getElementById('report-body');
+  const sol = getMember('sol');
+
+  const projSummary = S.projects.map(p => `- ${p.title} (${p.stage}, ${p.dept === 'content' ? '콘텐츠' : p.dept === 'dev' ? '개발' : '커리어'}팀)`).join('\n');
+
+  el.textContent = '';
+  try {
+    let text = '';
+    await callClaudeStream(
+      sol.systemPrompt,
+      `이번 주 프로젝트 현황:\n${projSummary}\n\n이번 주 업무를 정리하고 다음 주 방향을 제안해주세요. 따뜻하고 격려하는 톤으로 작성해주세요.`,
+      chunk => {
+        text += chunk;
+        el.textContent = text;
+      }, 600
+    );
+  } catch (e) {
+    el.textContent = e.message === 'API_KEY_MISSING'
+      ? 'API 키를 입력하면 솔이 주간 리포트를 작성해드릴게요.'
+      : `오류: ${e.message}`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '다시 생성하기';
+}
+
+/* ─── PROJECT CREATE ──────────────────────────────── */
+async function createProject() {
+  const title = document.getElementById('np-title').value.trim();
+  const dept = document.getElementById('np-team').value;
+  const desc = document.getElementById('np-desc').value.trim();
+  if (!title) return;
+
+  const deptMembers = MEMBERS.filter(m => m.dept === dept);
+  const member = deptMembers[0];
+
+  const newProj = { id: S.nextId++, title, dept, stage: '아이디어', member: member.id, blocked: false, tasks: [] };
+  S.projects.push(newProj);
+
+  closeModal('newproj-overlay');
+  document.getElementById('np-title').value = '';
+  document.getElementById('np-desc').value = '';
+
+  navigate('kanban');
+  S.kanbanFilter = 'all';
+  document.querySelectorAll('[data-kfilter]').forEach(b => b.classList.toggle('active', b.dataset.kfilter === 'all'));
+  renderKanban();
+
+  // Auto-generate tasks
+  const key = API_KEY || window._apiKey || '';
+  if (!key) return;
+  try {
+    const tasks = await callClaude(
+      member.systemPrompt,
+      `프로젝트: "${title}"\n설명: ${desc || '없음'}\n\n이 프로젝트의 단계별 할 일 5개를 번호 목록으로 간결하게 작성해주세요.`,
+      250
+    );
+    newProj.tasks = tasks;
+    if (S.section === 'kanban') renderKanban();
+  } catch {}
+}
+
+/* ─── MODAL HELPERS ───────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ─── EVENT SETUP ─────────────────────────────────── */
+function setupEvents() {
+  // nav buttons
+  document.querySelectorAll('[data-sec]').forEach(btn => {
+    btn.addEventListener('click', () => navigate(btn.dataset.sec));
+  });
+
+  // home dept filter
+  document.getElementById('home-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.dept-tab');
+    if (!btn) return;
+    S.homeFilter = btn.dataset.dept;
+    document.querySelectorAll('#home-tabs .dept-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderTeamGrid();
+  });
+
+  // kanban filter
+  document.getElementById('kanban-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.dept-tab');
+    if (!btn) return;
+    S.kanbanFilter = btn.dataset.kfilter;
+    document.querySelectorAll('[data-kfilter]').forEach(b => b.classList.toggle('active', b === btn));
+    renderKanban();
+  });
+
+  // new project
+  document.getElementById('open-new-project').addEventListener('click', () => openModal('newproj-overlay'));
+
+  // send btn
+  document.getElementById('send-btn').addEventListener('click', handleSend);
+  document.getElementById('instr-ta').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSend();
+  });
+
+  // overlay close on outside click
+  document.querySelectorAll('.overlay').forEach(ov => {
+    ov.addEventListener('click', e => { if (e.target === ov) closeModal(ov.id); });
+  });
+
+  // sidebar logo -> home
+  document.querySelector('.sb-logo').addEventListener('click', () => navigate('home'));
+}
+
+/* ─── INIT ────────────────────────────────────────── */
+function init() {
+  renderDate();
+  setupEvents();
+  renderSidebar();
+  renderTeamGrid();
+  renderInstruct();
+  checkApiKey();
+
+  // Load briefing + suggestions asynchronously
+  loadBriefing();
+  setTimeout(loadAllSuggestions, 1200);
+}
+
+init();
+</script>
+</body>
+</html>

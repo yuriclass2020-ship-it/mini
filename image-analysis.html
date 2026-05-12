@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>이미지 분석 도구</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+    #root { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; color: #f8fafc; }
+    .subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 24px; }
+
+    .dropzone {
+      border: 2px dashed #334155;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: #1e293b;
+    }
+    .dropzone:hover, .dropzone.over { border-color: #6366f1; background: #1e2d4a; }
+    .dropzone svg { display: block; margin: 0 auto 12px; opacity: 0.5; }
+    .dropzone p { color: #94a3b8; font-size: 0.9rem; }
+    .dropzone span { color: #6366f1; text-decoration: underline; }
+    input[type=file] { display: none; }
+
+    .results { margin-top: 24px; display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 620px) { .results { grid-template-columns: 1fr; } }
+
+    .preview-box {
+      background: repeating-conic-gradient(#1e293b 0% 25%, #162032 0% 50%) 0 0 / 16px 16px;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 1;
+    }
+    .preview-box img { max-width: 100%; max-height: 100%; }
+
+    .cards { display: flex; flex-direction: column; gap: 10px; }
+    .card { background: #1e293b; border-radius: 10px; padding: 14px 16px; }
+    .card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 8px; }
+    .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; padding: 3px 0; }
+    .row .label { color: #94a3b8; }
+    .row .value { font-weight: 600; color: #f1f5f9; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.8rem; font-weight: 600; padding: 2px 9px;
+      border-radius: 99px;
+    }
+    .badge.ok { background: #14532d; color: #86efac; }
+    .badge.warn { background: #78350f; color: #fcd34d; }
+    .badge.err { background: #450a0a; color: #fca5a5; }
+
+    .overall {
+      padding: 12px 16px; border-radius: 10px; display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 1rem; margin-bottom: 10px;
+    }
+    .overall.ok { background: #14532d; color: #86efac; }
+    .overall.warn { background: #78350f; color: #fcd34d; }
+    .overall.err { background: #450a0a; color: #fca5a5; }
+
+    .reset-btn {
+      margin-top: 16px; padding: 8px 20px; border-radius: 8px;
+      background: #334155; color: #cbd5e1; border: none; cursor: pointer;
+      font-size: 0.9rem; transition: background 0.15s;
+    }
+    .reset-btn:hover { background: #475569; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useRef } = React;
+
+const SPECS = { max: 2048, rec: 500 };
+
+function analyze(file, img) {
+  const c = document.createElement("canvas");
+  const w = img.naturalWidth, h = img.naturalHeight;
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const alpha = (x, y) => d[(y * w + x) * 4 + 3];
+  const corners = [alpha(0,0), alpha(w-1,0), alpha(0,h-1), alpha(w-1,h-1)];
+  const transparentBg = corners.filter(a => a < 10).length >= 3;
+  let tp = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 10) tp++;
+  const tpRatio = ((tp / (w * h)) * 100).toFixed(1);
+  const hasOpaque = (pixels) => pixels.some(([x, y]) => alpha(x, y) > 10);
+  const edges = {
+    top:    hasOpaque(Array.from({ length: w }, (_, x) => [x, 0])),
+    bottom: hasOpaque(Array.from({ length: w }, (_, x) => [x, h - 1])),
+    left:   hasOpaque(Array.from({ length: h }, (_, y) => [0, y])),
+    right:  hasOpaque(Array.from({ length: h }, (_, y) => [w - 1, y])),
+  };
+  const edgeClip = Object.values(edges).some(Boolean);
+  let x0 = w, x1 = 0, y0 = h, y1 = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (alpha(x, y) > 10) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  const cw = x1 > x0 ? x1 - x0 + 1 : 0;
+  const ch = y1 > y0 ? y1 - y0 + 1 : 0;
+  const fill = cw && ch ? ((cw * ch) / (w * h) * 100).toFixed(1) : "0.0";
+  const sizeKB = (file.size / 1024).toFixed(1);
+  const correctSize = (w === 360 && h === 360) || (w === 96 && h === 96);
+  return { w, h, sizeKB, transparentBg, tpRatio, edgeClip, edges, cw, ch, fill, correctSize, square: w === h };
+}
+
+function statusBadge(ok, warnMsg, errMsg) {
+  if (ok === true)  return <span className="badge ok">✓ 정상</span>;
+  if (ok === "warn") return <span className="badge warn">⚠ {warnMsg}</span>;
+  return <span className="badge err">✗ {errMsg}</span>;
+}
+
+function App() {
+  const [result, setResult] = useState(null);
+  const [imgSrc, setImgSrc] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef();
+
+  const processFile = useCallback((file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const r = analyze(file, img);
+      setResult(r);
+      setImgSrc(url);
+    };
+    img.src = url;
+  }, []);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragging(false);
+    processFile(e.dataTransfer.files[0]);
+  }, [processFile]);
+
+  const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
+  const onDragLeave = () => setDragging(false);
+
+  const reset = () => { setResult(null); setImgSrc(null); };
+
+  if (!result) {
+    return (
+      <div>
+        <h1>🔍 이미지 분석 도구</h1>
+        <p className="subtitle">PNG/WebP 이미지를 업로드하면 크기·투명도·여백 등을 분석합니다</p>
+        <div
+          className={`dropzone${dragging ? " over" : ""}`}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onClick={() => inputRef.current.click()}
+        >
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>이미지를 드래그하거나 <span>클릭해서 선택</span>하세요</p>
+          <p style={{fontSize:"0.78rem",marginTop:6,color:"#475569"}}>PNG · JPG · WebP · GIF 지원</p>
+          <input ref={inputRef} type="file" accept="image/*" onChange={e => processFile(e.target.files[0])} />
+        </div>
+      </div>
+    );
+  }
+
+  const { w, h, sizeKB, transparentBg, tpRatio, edgeClip, edges, cw, ch, fill, correctSize, square } = result;
+  const tooBig = w > SPECS.max || h > SPECS.max;
+  const notSquare = !square;
+  const issues = [tooBig, notSquare, edgeClip].filter(Boolean).length;
+  const overallStatus = issues === 0 ? "ok" : issues === 1 ? "warn" : "err";
+  const overallText = overallStatus === "ok" ? "이미지 상태 양호" : overallStatus === "warn" ? "주의 필요" : "문제 발견";
+
+  return (
+    <div>
+      <h1>🔍 이미지 분석 결과</h1>
+      <p className="subtitle">{result.w}×{result.h}px · {sizeKB} KB</p>
+
+      <div className={`overall ${overallStatus}`}>
+        {overallStatus === "ok" ? "✅" : overallStatus === "warn" ? "⚠️" : "❌"} {overallText}
+        {issues > 0 && <span style={{fontWeight:400,fontSize:"0.85rem",opacity:.85}}> — {issues}개 항목 확인 필요</span>}
+      </div>
+
+      <div className="results">
+        <div className="preview-box">
+          <img src={imgSrc} alt="preview" />
+        </div>
+
+        <div className="cards">
+          {/* 크기 */}
+          <div className="card">
+            <div className="card-title">크기 / 비율</div>
+            <div className="row">
+              <span className="label">해상도</span>
+              <span className="value">{w} × {h} px</span>
+            </div>
+            <div className="row">
+              <span className="label">정사각형</span>
+              {statusBadge(!notSquare, "", "비정방형")}
+            </div>
+            <div className="row">
+              <span className="label">권장 크기 (360·96px)</span>
+              {statusBadge(correctSize, "", "비표준")}
+            </div>
+            <div className="row">
+              <span className="label">최대 크기 ({SPECS.max}px) 초과</span>
+              {statusBadge(!tooBig, "", "초과")}
+            </div>
+            <div className="row">
+              <span className="label">파일 크기</span>
+              <span className="value">{sizeKB} KB</span>
+            </div>
+          </div>
+
+          {/* 투명도 */}
+          <div className="card">
+            <div className="card-title">투명도 / 배경</div>
+            <div className="row">
+              <span className="label">투명 배경</span>
+              {statusBadge(transparentBg, "", "불투명 배경")}
+            </div>
+            <div className="row">
+              <span className="label">투명 픽셀 비율</span>
+              <span className="value">{tpRatio}%</span>
+            </div>
+          </div>
+
+          {/* 여백/잘림 */}
+          <div className="card">
+            <div className="card-title">여백 / 잘림</div>
+            <div className="row">
+              <span className="label">가장자리 잘림</span>
+              {statusBadge(!edgeClip, "가장자리에 픽셀 있음", "")}
+            </div>
+            {edgeClip && (
+              <div className="row">
+                <span className="label">잘린 방향</span>
+                <span className="value" style={{color:"#fca5a5"}}>
+                  {[edges.top&&"위", edges.bottom&&"아래", edges.left&&"왼쪽", edges.right&&"오른쪽"].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+            )}
+            <div className="row">
+              <span className="label">콘텐츠 영역</span>
+              <span className="value">{cw} × {ch} px</span>
+            </div>
+            <div className="row">
+              <span className="label">화면 채움 비율</span>
+              <span className="value">{fill}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button className="reset-btn" onClick={reset}>← 다른 이미지 분석</button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

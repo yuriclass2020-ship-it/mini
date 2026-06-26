@@ -1083,24 +1083,63 @@ function getStageColor(stage) {
 }
 
 /* ─── CLAUDE API ──────────────────────────────────── */
+function getApiKey() {
+  return API_KEY || window._apiKey || '';
+}
+
+function friendlyError(e) {
+  const msg = e.message || '';
+  if (msg === 'API_KEY_MISSING') return 'API_KEY_MISSING';
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+    if (location.protocol === 'file:')
+      return 'CORS_FILE';
+    return 'NETWORK';
+  }
+  if (msg.includes('invalid x-api-key') || msg.includes('invalid api key'))
+    return 'INVALID_KEY';
+  if (msg.includes('Could not resolve'))
+    return 'NETWORK';
+  return msg;
+}
+
+function errorMessage(code) {
+  switch (code) {
+    case 'API_KEY_MISSING':
+      return '상단 배너에서 Anthropic API 키를 입력해주세요.';
+    case 'CORS_FILE':
+      return 'file:// 에서는 API 호출이 차단됩니다.\n터미널에서 아래 명령어로 실행해주세요:\n\npython3 -m http.server 8080\n\n그 다음 브라우저에서 http://localhost:8080 으로 접속하세요.';
+    case 'NETWORK':
+      return '네트워크 연결을 확인해주세요. API 서버에 접속할 수 없습니다.';
+    case 'INVALID_KEY':
+      return 'API 키가 올바르지 않아요. sk-ant-... 형식인지 확인해주세요.';
+    default:
+      return code || '알 수 없는 오류가 발생했어요.';
+  }
+}
+
 async function callClaude(systemPrompt, userMsg, maxTokens = 512) {
-  const key = API_KEY || (window._apiKey || '');
+  const key = getApiKey();
   if (!key) throw new Error('API_KEY_MISSING');
-  const r = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMsg }],
-    }),
-  });
+  let r;
+  try {
+    r = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }],
+      }),
+    });
+  } catch (e) {
+    throw new Error(friendlyError(e));
+  }
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
     throw new Error(err.error?.message || `HTTP ${r.status}`);
@@ -1110,22 +1149,27 @@ async function callClaude(systemPrompt, userMsg, maxTokens = 512) {
 }
 
 async function callClaudeStream(systemPrompt, userMsg, onChunk, maxTokens = 1200) {
-  const key = API_KEY || (window._apiKey || '');
+  const key = getApiKey();
   if (!key) throw new Error('API_KEY_MISSING');
-  const r = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: maxTokens, stream: true,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMsg }],
-    }),
-  });
+  let r;
+  try {
+    r = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: maxTokens, stream: true,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }],
+      }),
+    });
+  } catch (e) {
+    throw new Error(friendlyError(e));
+  }
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
     throw new Error(err.error?.message || `HTTP ${r.status}`);
@@ -1224,6 +1268,11 @@ async function loadBriefing() {
   const systemP = `당신은 NORIHOW STUDIO AI 매니저입니다. 미니님은 유치원 교사 7년 경력의 콘텐츠 크리에이터이자 에듀테크 개발자입니다. 팀 현황을 보고 따뜻하고 간결하게 브리핑하세요. 2-3문장으로 짧게, 구체적인 오늘의 포커스를 제안하세요.`;
   const userMsg = `현재 프로젝트 현황: ${projectSummary}. 막힌 프로젝트가 있다면 언급하고, 오늘 집중할 방향을 제안해주세요.`;
 
+  if (!getApiKey()) {
+    el.innerHTML = '안녕하세요, 미니님! ✦ 현재 6개 프로젝트가 진행 중이에요. "그레이트북스 자소서"가 막혀있으니, 솔에게 도움을 요청해보세요. 오늘은 콘텐츠팀 카드뉴스 작업에 집중하면 좋겠어요!<br><br><span style="font-size:11px;opacity:.7">API 키를 입력하면 실시간 AI 브리핑을 받을 수 있어요.</span>';
+    return;
+  }
+
   el.innerHTML = '<div class="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="font-size:12px;margin-left:4px;">브리핑 작성 중…</span></div>';
 
   try {
@@ -1234,12 +1283,9 @@ async function loadBriefing() {
     }, 300);
     S.briefingLoaded = true;
   } catch (e) {
-    if (e.message === 'API_KEY_MISSING') {
-      el.textContent = 'API 키를 입력하면 AI 브리핑이 자동으로 시작됩니다. ✦';
-    } else {
-      el.textContent = '브리핑 생성 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
-      console.error(e);
-    }
+    const code = friendlyError(e);
+    el.innerHTML = `<div style="font-size:12px;line-height:1.7;white-space:pre-wrap">${errorMessage(code)}</div>`;
+    console.error('Briefing error:', e);
   }
 }
 
@@ -1291,6 +1337,16 @@ async function loadAllSuggestions() {
   }
 }
 
+const DEFAULT_SUGGESTIONS = {
+  lina: '이번 주 인스타 피드에 레지오 에밀리아 놀이 중심 카드뉴스를 올려볼까요?',
+  hana: '최근 유아교육 콘텐츠 트렌드를 분석해서 다음 달 전략을 세워볼게요.',
+  ara: '피드 전체 색감을 따뜻한 톤으로 통일하면 브랜드 일관성이 높아질 거예요.',
+  coco: '감정 표현 놀이 앱에 아이들 그림 갤러리 기능을 추가해보면 어떨까요?',
+  namu: '5세 발달 특성에 맞춘 프로젝트 접근법 수업안을 정리해드릴게요.',
+  sol: '그레이트북스 자소서에 교육 앱 개발 경험을 핵심 차별점으로 넣어볼까요?',
+  dodo: '유아교사+크리에이터+개발자를 묶는 통합 브랜드 스토리를 다듬어볼게요.',
+};
+
 async function loadSuggestion(m) {
   S.suggestionsLoading[m.id] = true;
   if (S.section === 'home') renderTeamGrid();
@@ -1302,7 +1358,7 @@ async function loadSuggestion(m) {
     const text = await callClaude(systemP, `담당 프로젝트: ${projectSummary}. 오늘 한 가지 구체적인 제안을 해주세요.`, 120);
     S.suggestions[m.id] = text.trim();
   } catch (e) {
-    S.suggestions[m.id] = '오늘의 제안을 준비할게요!';
+    S.suggestions[m.id] = DEFAULT_SUGGESTIONS[m.id] || '준비가 되면 제안을 드릴게요!';
   } finally {
     S.suggestionsLoading[m.id] = false;
     if (S.section === 'home') renderTeamGrid();
@@ -1369,7 +1425,8 @@ async function handleSend() {
       streamEl.textContent = result;
     }, 1400);
   } catch (e) {
-    document.getElementById('rm-content').innerHTML = `<div class="result-body" style="color:#c45a30">오류가 발생했어요: ${e.message}</div>`;
+    const code = friendlyError(e);
+    document.getElementById('rm-content').innerHTML = `<div class="result-body" style="color:#c45a30;white-space:pre-wrap">${errorMessage(code)}</div>`;
   }
 
   btn.disabled = false;
@@ -1577,9 +1634,8 @@ async function generateReport() {
       }, 600
     );
   } catch (e) {
-    el.textContent = e.message === 'API_KEY_MISSING'
-      ? 'API 키를 입력하면 솔이 주간 리포트를 작성해드릴게요.'
-      : `오류: ${e.message}`;
+    const code = friendlyError(e);
+    el.textContent = errorMessage(code);
   }
 
   btn.disabled = false;

@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>노리랩 AI 동화</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { font-family:'Noto Sans KR',sans-serif; background:#1a1a2e; min-height:100vh; overflow:hidden; user-select:none; }
+
+    /* ── HOME ── */
+    #home {
+      min-height:100vh;
+      background: linear-gradient(160deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+      display:flex; flex-direction:column; align-items:center;
+      padding:24px 16px 32px;
+      overflow-y:auto;
+    }
+    .home-title {
+      text-align:center; margin-bottom:28px; margin-top:8px;
+    }
+    .home-title .badge {
+      display:inline-block;
+      background:rgba(255,255,255,.1);
+      border:1px solid rgba(255,255,255,.2);
+      color:rgba(255,255,255,.7);
+      font-size:11px; font-weight:700; letter-spacing:.15em;
+      padding:4px 14px; border-radius:20px;
+      margin-bottom:10px;
+    }
+    .home-title h1 {
+      font-size:28px; font-weight:900; color:#fff;
+      line-height:1.2;
+    }
+    .home-title h1 span { color:#FFD166; }
+    .home-title p {
+      font-size:13px; color:rgba(255,255,255,.5);
+      margin-top:6px; font-weight:400;
+    }
+
+    /* floating stars background */
+    .stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    .star {
+      position:absolute; background:#fff; border-radius:50%;
+      animation: twinkle 3s infinite;
+    }
+    @keyframes twinkle { 0%,100%{opacity:.2;transform:scale(1)} 50%{opacity:.8;transform:scale(1.3)} }
+
+    .weeks-grid {
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:14px;
+      width:100%; max-width:500px;
+      position:relative; z-index:1;
+    }
+
+    .week-card {
+      border-radius:20px;
+      padding:18px 14px;
+      cursor:pointer;
+      transition: transform .2s, box-shadow .2s;
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      border:2px solid rgba(255,255,255,.15);
+      position:relative; overflow:hidden;
+    }
+    .week-card::before {
+      content:''; position:absolute; inset:0;
+      background:rgba(255,255,255,.08);
+      opacity:0; transition:opacity .2s;
+    }
+    .week-card:hover::before, .week-card:active::before { opacity:1; }
+    .week-card:active { transform:scale(.97); }
+
+    .week-card .wk-emoji { font-size:36px; line-height:1; }
+    .week-card .wk-num { font-size:10px; font-weight:700; letter-spacing:.1em; color:rgba(255,255,255,.6); }
+    .week-card .wk-title { font-size:13px; font-weight:700; color:#fff; text-align:center; line-height:1.3; }
+
+    /* ── STORY SCREEN ── */
+    #story {
+      display:none;
+      position:fixed; inset:0;
+      flex-direction:column;
+      transition:background .5s;
+    }
+    #story.show { display:flex; }
+
+    .story-top {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 18px;
+      position:relative; z-index:10;
+    }
+    .back-btn {
+      width:40px; height:40px;
+      background:rgba(255,255,255,.2);
+      border:none; border-radius:50%;
+      color:#fff; font-size:20px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      backdrop-filter:blur(8px);
+      transition:background .2s;
+    }
+    .back-btn:hover { background:rgba(255,255,255,.3); }
+
+    .page-dots { display:flex; gap:6px; }
+    .dot {
+      width:8px; height:8px; border-radius:50%;
+      background:rgba(255,255,255,.3);
+      transition:all .3s;
+    }
+    .dot.active { background:#fff; width:20px; border-radius:4px; }
+
+    .audio-btn {
+      width:40px; height:40px;
+      background:rgba(255,255,255,.2);
+      border:none; border-radius:50%;
+      color:#fff; font-size:18px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      backdrop-filter:blur(8px);
+      transition:all .2s;
+    }
+    .audio-btn:hover { background:rgba(255,255,255,.3); }
+    .audio-btn.playing { background:rgba(255,255,255,.4); animation:pulse-btn 1.5s infinite; }
+    @keyframes pulse-btn { 0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.4)} 50%{box-shadow:0 0 0 10px rgba(255,255,255,0)} }
+
+    /* Scene area */
+    .scene-area {
+      flex:1; display:flex; align-items:center; justify-content:center;
+      position:relative; overflow:hidden;
+    }
+    .scene-svg { width:100%; max-width:320px; max-height:260px; }
+
+    /* Text area */
+    .text-area {
+      background:rgba(255,255,255,.15);
+      backdrop-filter:blur(20px);
+      border-top:1px solid rgba(255,255,255,.2);
+      padding:22px 22px 14px;
+      min-height:160px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .story-week-label {
+      font-size:10px; font-weight:700; letter-spacing:.12em;
+      color:rgba(255,255,255,.5); text-transform:uppercase;
+    }
+    .story-text {
+      font-size:18px; font-weight:700; color:#fff;
+      line-height:1.65;
+      flex:1;
+      min-height:80px;
+    }
+    .story-text.animating span { opacity:0; animation:wordIn .3s forwards; }
+    @keyframes wordIn { to{opacity:1} }
+
+    .story-nav {
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .nav-hint { font-size:11px; color:rgba(255,255,255,.4); font-weight:400; }
+    .next-btn {
+      padding:10px 22px;
+      background:#fff;
+      border:none; border-radius:24px;
+      font-family:'Noto Sans KR',sans-serif;
+      font-size:13px; font-weight:700;
+      cursor:pointer;
+      transition:all .2s;
+      display:flex; align-items:center; gap:6px;
+    }
+    .next-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+    .next-btn:active { transform:scale(.97); }
+
+    /* Completion screen */
+    .complete-screen {
+      display:none;
+      position:fixed; inset:0;
+      background:linear-gradient(135deg,#667eea,#764ba2);
+      flex-direction:column; align-items:center; justify-content:center;
+      z-index:100; gap:20px;
+      text-align:center; padding:30px;
+    }
+    .complete-screen.show { display:flex; }
+    .complete-emoji { font-size:80px; animation:bounce 1s infinite alternate; }
+    @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-16px)} }
+    .complete-msg { font-size:24px; font-weight:900; color:#fff; line-height:1.3; }
+    .complete-sub { font-size:15px; color:rgba(255,255,255,.7); font-weight:400; }
+    .home-again-btn {
+      margin-top:10px;
+      padding:14px 36px;
+      background:#FFD166;
+      border:none; border-radius:30px;
+      font-family:'Noto Sans KR',sans-serif;
+      font-size:16px; font-weight:700;
+      color:#333; cursor:pointer;
+      transition:all .2s;
+    }
+    .home-again-btn:hover { transform:scale(1.04); }
+
+    /* Animations for characters */
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    @keyframes wiggle { 0%,100%{transform:rotate(-8deg)} 50%{transform:rotate(8deg)} }
+    @keyframes pop { 0%{transform:scale(0);opacity:0} 80%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+    @keyframes slide-in { from{transform:translateX(-60px);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes blink { 0%,90%,100%{scaleY:1} 95%{scaleY:.1} }
+
+    .float { animation:float 2.5s ease-in-out infinite; }
+    .wiggle { animation:wiggle 1s ease-in-out infinite; }
+    .spin-slow { animation:spin-slow 8s linear infinite; }
+
+    @media (max-width:400px) {
+      .story-text { font-size:16px; }
+      .weeks-grid { gap:10px; }
+      .week-card { padding:14px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- STARS BG -->
+<div class="stars" id="stars"></div>
+
+<!-- ══ HOME ══ -->
+<div id="home">
+  <div class="home-title" style="position:relative;z-index:1">
+    <div class="badge">NORILAB · 노리랩</div>
+    <h1>AI <span>동화</span> 극장 🌟</h1>
+    <p>주차를 선택하면 동화가 시작돼요!</p>
+  </div>
+  <div class="weeks-grid" id="weeks-grid"></div>
+</div>
+
+<!-- ══ STORY ══ -->
+<div id="story">
+  <div class="story-top">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="page-dots" id="page-dots"></div>
+    <button class="audio-btn" id="audio-btn" onclick="toggleAudio()">🔊</button>
+  </div>
+  <div class="scene-area" id="scene-area"></div>
+  <div class="text-area">
+    <div class="story-week-label" id="story-week-label"></div>
+    <div class="story-text" id="story-text"></div>
+    <div class="story-nav">
+      <span class="nav-hint" id="nav-hint">탭하면 다음 장면</span>
+      <button class="next-btn" id="next-btn" onclick="nextPage()">
+        다음 <span>→</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ COMPLETE ══ -->
+<div class="complete-screen" id="complete-screen">
+  <div class="complete-emoji" id="complete-emoji">🎉</div>
+  <div class="complete-msg" id="complete-msg">동화 끝!</div>
+  <div class="complete-sub" id="complete-sub">이제 활동을 시작해볼까요?</div>
+  <button class="home-again-btn" onclick="goHome()">다른 동화 보기 🏠</button>
+</div>
+
+<script>
+/* ─── WEEK DATA ─────────────────────────────────────── */
+const WEEKS = [
+  {
+    title: 'AI 친구를\n만나요',
+    emoji: '🤖',
+    color: ['#FF6B8A','#FF4757'],
+    pages: [
+      {
+        text: '어느 반짝이는 밤, 하늘에서 작은 별 하나가 내려왔어요. 별의 이름은 "별이"였어요.',
+        scene: 'star_falling'
+      },
+      {
+        text: '"안녕! 나는 별이야. 뭐든지 물어봐!" 별이는 빙그레 웃으며 말했어요.',
+        scene: 'star_wave'
+      },
+      {
+        text: '"별이야, 오늘 날씨가 어때?" 별이가 대답했어요. "오늘은 구름 한 점 없이 맑아요!"',
+        scene: 'star_talk'
+      },
+      {
+        text: '별이처럼 우리를 도와주는 특별한 친구를 바로 "AI"라고 해요. AI는 인공지능이에요!',
+        scene: 'star_friends'
+      },
+    ]
+  },
+  {
+    title: 'AI는 어떻게\n배워요?',
+    emoji: '📚',
+    color: ['#FF8C42','#E55A00'],
+    pages: [
+      {
+        text: '로봇 친구 뚜루는 처음에는 아무것도 몰랐어요. 사과를 봐도 "이게 뭐지?" 했어요.',
+        scene: 'robot_confused'
+      },
+      {
+        text: '뚜루는 사과 사진을 100장, 200장, 1000장 보았어요. 그러자 "사과다!" 알 수 있게 됐어요.',
+        scene: 'robot_learning'
+      },
+      {
+        text: '우리가 책을 읽으며 배우듯이, AI도 많은 것을 보고 들어서 배운답니다.',
+        scene: 'robot_smart'
+      },
+      {
+        text: '뚜루는 이제 사과도, 바나나도, 포도도 알 수 있어요. 많이 배웠거든요!',
+        scene: 'robot_happy'
+      },
+    ]
+  },
+  {
+    title: 'AI의 눈,\n카메라',
+    emoji: '👀',
+    color: ['#FFD166','#F0A500'],
+    pages: [
+      {
+        text: '별이에게는 특별한 눈이 있어요. 바로 카메라예요! 빛을 모아서 세상을 볼 수 있어요.',
+        scene: 'camera_eye'
+      },
+      {
+        text: '"별이야, 이게 뭐야?" 꽃을 보여줬더니 "튤립꽃이에요!" 하고 바로 알았어요.',
+        scene: 'camera_flower'
+      },
+      {
+        text: '고양이를 보면 "야옹이예요!", 강아지를 보면 "강아지예요!" 척척 맞혀요.',
+        scene: 'camera_animals'
+      },
+      {
+        text: 'AI의 카메라 눈은 우리 눈처럼 세상을 보고 무엇인지 알 수 있어요. 신기하지요?',
+        scene: 'camera_wow'
+      },
+    ]
+  },
+  {
+    title: 'AI는 말을\n들어요',
+    emoji: '👂',
+    color: ['#06D6A0','#04A07A'],
+    pages: [
+      {
+        text: '"별이야!" 하고 부르면 별이가 "네, 여기 있어요!" 하고 대답해요.',
+        scene: 'ear_call'
+      },
+      {
+        text: '별이에게는 아주 작은 귀가 있어요. 우리 말소리를 듣고 글자로 바꿔요.',
+        scene: 'ear_listen'
+      },
+      {
+        text: '"노래 틀어줘!" 하면 신나는 음악이 나와요. "동화 읽어줘!" 하면 동화를 읽어줘요.',
+        scene: 'ear_command'
+      },
+      {
+        text: '별이는 우리 말을 잘 듣고 도와주는 친절한 AI 친구예요!',
+        scene: 'ear_happy'
+      },
+    ]
+  },
+  {
+    title: 'AI와 함께\n그림 그려요',
+    emoji: '🎨',
+    color: ['#4FC3F7','#0288D1'],
+    pages: [
+      {
+        text: '"별이야, 하늘을 나는 고양이를 그려줘!" 미소가 말했어요.',
+        scene: 'draw_request'
+      },
+      {
+        text: '별이가 생각하더니... 짠! 파란 하늘을 나는 줄무늬 고양이 그림이 나타났어요!',
+        scene: 'draw_create'
+      },
+      {
+        text: '"우와!" 미소가 놀라며 외쳤어요. AI는 우리가 상상하는 것을 그림으로 그려줄 수 있어요.',
+        scene: 'draw_wow'
+      },
+      {
+        text: '무지개 토끼, 우주 강아지, 꽃 자동차! 뭐든지 그릴 수 있어요. 뭘 그려볼까요?',
+        scene: 'draw_ideas'
+      },
+    ]
+  },
+  {
+    title: '로봇 친구가\n도와줘요',
+    emoji: '🦾',
+    color: ['#3D7EFF','#1A56DB'],
+    pages: [
+      {
+        text: '삐뚜삐뚜! 로봇 친구 뽀뽀가 왔어요. 뽀뽀의 팔은 아주 힘이 세요.',
+        scene: 'robot_strong'
+      },
+      {
+        text: '무거운 짐도 거뜬! 높은 곳도 문제없어요. 뽀뽀는 사람이 힘든 일을 대신 해줘요.',
+        scene: 'robot_carry'
+      },
+      {
+        text: '아픈 사람에게 약을 가져다주고, 청소도 하고, 집 안을 지키기도 해요.',
+        scene: 'robot_help'
+      },
+      {
+        text: 'AI가 들어있는 로봇 친구들이 우리 생활 곳곳에서 도와주고 있어요!',
+        scene: 'robot_together'
+      },
+    ]
+  },
+  {
+    title: 'AI는 착한\n친구예요',
+    emoji: '💛',
+    color: ['#9B5DE5','#7B2FBE'],
+    pages: [
+      {
+        text: '별이는 항상 착하게 도와주는 AI예요. 친구들에게 나쁜 말은 절대 하지 않아요.',
+        scene: 'good_heart'
+      },
+      {
+        text: '"별이야, 친구를 놀려줘!" 말했더니 별이가 말했어요. "그건 안 돼요. 친구는 소중하니까요."',
+        scene: 'good_no'
+      },
+      {
+        text: 'AI는 착하게 사용해야 해요. 우리도 AI에게 착한 말을 해야 해요.',
+        scene: 'good_rules'
+      },
+      {
+        text: '우리가 AI를 바르게 사용하면, AI도 우리에게 더 착한 친구가 돼요!',
+        scene: 'good_together'
+      },
+    ]
+  },
+  {
+    title: '우리가 AI를\n만들어요!',
+    emoji: '⚙️',
+    color: ['#F72585','#C2006A'],
+    pages: [
+      {
+        text: '"우리도 AI를 만들 수 있을까?" 친구들이 모여 이야기했어요.',
+        scene: 'make_wonder'
+      },
+      {
+        text: '"빨간불이면 멈추고, 초록불이면 가는 신호등 알지? 그것도 규칙이야!" 선생님이 말씀하셨어요.',
+        scene: 'make_rules'
+      },
+      {
+        text: 'AI는 규칙의 모음이에요. 우리가 규칙을 만들면 그게 바로 AI의 시작이에요!',
+        scene: 'make_code'
+      },
+      {
+        text: '우리는 AI를 사용하는 사람이기도 하고, AI를 만드는 사람이 될 수도 있어요!',
+        scene: 'make_future'
+      },
+    ]
+  },
+];
+
+/* ─── STATE ─────────────────────────────────────────── */
+let currentWeek = 0;
+let currentPage = 0;
+let audioEnabled = true;
+let speaking = false;
+
+/* ─── STARS BG ──────────────────────────────────────── */
+function createStars() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 50; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() * 3 + 1;
+    star.style.cssText = `
+      width:${size}px; height:${size}px;
+      top:${Math.random()*100}%;
+      left:${Math.random()*100}%;
+      animation-delay:${Math.random()*3}s;
+      animation-duration:${2+Math.random()*3}s;
+    `;
+    container.appendChild(star);
+  }
+}
+
+/* ─── HOME ──────────────────────────────────────────── */
+function renderHome() {
+  const grid = document.getElementById('weeks-grid');
+  grid.innerHTML = WEEKS.map((w, i) => `
+    <div class="week-card"
+         style="background:linear-gradient(135deg,${w.color[0]},${w.color[1]})"
+         onclick="startStory(${i})">
+      <div class="wk-emoji">${w.emoji}</div>
+      <div class="wk-num">${i+1}주차</div>
+      <div class="wk-title">${w.title.replace('\n','<br>')}</div>
+    </div>
+  `).join('');
+}
+
+/* ─── STORY ─────────────────────────────────────────── */
+function startStory(weekIndex) {
+  currentWeek = weekIndex;
+  currentPage = 0;
+  const week = WEEKS[weekIndex];
+
+  // set background
+  const story = document.getElementById('story');
+  story.style.background = `linear-gradient(160deg,${week.color[0]} 0%,${week.color[1]} 100%)`;
+
+  // show story screen
+  document.getElementById('home').style.display = 'none';
+  story.classList.add('show');
+
+  renderPage();
+}
+
+function renderPage() {
+  const week = WEEKS[currentWeek];
+  const page = week.pages[currentPage];
+  const total = week.pages.length;
+
+  // dots
+  document.getElementById('page-dots').innerHTML = week.pages.map((_,i) =>
+    `<div class="dot ${i===currentPage?'active':''}"></div>`
+  ).join('');
+
+  // label
+  document.getElementById('story-week-label').textContent =
+    `${currentWeek+1}주차 · ${week.title.replace('\n',' ')}`;
+
+  // scene
+  document.getElementById('scene-area').innerHTML = buildScene(page.scene, week.color[0]);
+
+  // text (animate in)
+  const textEl = document.getElementById('story-text');
+  textEl.textContent = '';
+  setTimeout(() => {
+    textEl.textContent = page.text;
+    textEl.style.animation = 'none';
+    textEl.offsetHeight;
+    textEl.style.animation = '';
+  }, 100);
+
+  // next/done button
+  const isLast = currentPage === total - 1;
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.innerHTML = isLast ? '활동 시작! 🎉' : '다음 →';
+  nextBtn.style.color = week.color[1];
+
+  document.getElementById('nav-hint').textContent =
+    `${currentPage+1} / ${total}`;
+
+  // audio
+  setTimeout(() => speakText(page.text), 400);
+}
+
+function nextPage() {
+  const week = WEEKS[currentWeek];
+  const total = week.pages.length;
+
+  stopSpeech();
+  if (currentPage < total - 1) {
+    currentPage++;
+    renderPage();
+  } else {
+    showComplete();
+  }
+}
+
+function goHome() {
+  stopSpeech();
+  document.getElementById('story').classList.remove('show');
+  document.getElementById('complete-screen').classList.remove('show');
+  document.getElementById('home').style.display = 'flex';
+}
+
+function showComplete() {
+  const week = WEEKS[currentWeek];
+  document.getElementById('complete-emoji').textContent = week.emoji;
+  document.getElementById('complete-msg').textContent = `${week.title.replace('\n','')} 동화 끝!`;
+  document.getElementById('complete-screen').classList.add('show');
+  speakText('잘 들었어요! 이제 활동을 시작해볼까요?');
+}
+
+/* ─── SPEECH ─────────────────────────────────────────── */
+function speakText(text) {
+  if (!audioEnabled) return;
+  stopSpeech();
+  if (!window.speechSynthesis) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'ko-KR';
+  utt.rate = 0.88;
+  utt.pitch = 1.15;
+  utt.volume = 1;
+  utt.onstart = () => {
+    speaking = true;
+    document.getElementById('audio-btn').classList.add('playing');
+  };
+  utt.onend = utt.onerror = () => {
+    speaking = false;
+    document.getElementById('audio-btn').classList.remove('playing');
+  };
+  speechSynthesis.speak(utt);
+}
+
+function stopSpeech() {
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  speaking = false;
+  const btn = document.getElementById('audio-btn');
+  if (btn) btn.classList.remove('playing');
+}
+
+function toggleAudio() {
+  audioEnabled = !audioEnabled;
+  const btn = document.getElementById('audio-btn');
+  if (audioEnabled) {
+    btn.textContent = '🔊';
+    const page = WEEKS[currentWeek]?.pages[currentPage];
+    if (page) speakText(page.text);
+  } else {
+    btn.textContent = '🔇';
+    stopSpeech();
+  }
+}
+
+/* ─── SCENES (SVG) ──────────────────────────────────── */
+function buildScene(sceneKey, color) {
+  const scenes = {
+
+    /* ── WEEK 1 ── */
+    star_falling: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <defs>
+          <radialGradient id="sky" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#1a1a3e"/>
+            <stop offset="100%" stop-color="#0a0a1a"/>
+          </radialGradient>
+        </defs>
+        <rect width="320" height="240" fill="url(#sky)" rx="20"/>
+        <!-- stars bg -->
+        <circle cx="40" cy="30" r="2" fill="#fff" opacity=".6"/>
+        <circle cx="280" cy="20" r="1.5" fill="#fff" opacity=".5"/>
+        <circle cx="160" cy="15" r="2.5" fill="#fff" opacity=".7"/>
+        <circle cx="90" cy="60" r="1" fill="#fff" opacity=".4"/>
+        <circle cx="250" cy="55" r="1.5" fill="#fff" opacity=".6"/>
+        <!-- falling star trail -->
+        <line x1="160" y1="10" x2="160" y2="80" stroke="#FFD166" stroke-width="3" opacity=".6" stroke-linecap="round"/>
+        <!-- star character "별이" -->
+        <g style="animation:float 2.5s ease-in-out infinite">
+          <polygon points="160,75 168,98 192,98 173,113 180,136 160,121 140,136 147,113 128,98 152,98" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          <!-- face -->
+          <circle cx="152" cy="100" r="4" fill="#2C1810"/>
+          <circle cx="168" cy="100" r="4" fill="#2C1810"/>
+          <circle cx="153.5" cy="98.5" r="1.5" fill="white"/>
+          <circle cx="169.5" cy="98.5" r="1.5" fill="white"/>
+          <path d="M154 108 Q160 114 166 108" stroke="#C47A00" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- blush -->
+          <ellipse cx="146" cy="106" rx="5" ry="3" fill="#FF9AB0" opacity=".5"/>
+          <ellipse cx="174" cy="106" rx="5" ry="3" fill="#FF9AB0" opacity=".5"/>
+          <!-- sparkles -->
+          <circle cx="110" cy="90" r="3" fill="#FFD166" opacity=".8" style="animation:twinkle 1.5s infinite"/>
+          <circle cx="210" cy="110" r="2" fill="#FFD166" opacity=".6" style="animation:twinkle 2s .5s infinite"/>
+          <circle cx="200" cy="70" r="4" fill="#FFD166" opacity=".5" style="animation:twinkle 1.8s .3s infinite"/>
+        </g>
+        <text x="160" y="175" text-anchor="middle" font-size="16" font-weight="700" fill="${color}" font-family="Noto Sans KR">별이가 내려와요! ⭐</text>
+      </svg>`,
+
+    star_wave: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a1a3e" rx="20"/>
+        <circle cx="80" cy="50" r="30" fill="rgba(255,209,102,.1)"/>
+        <circle cx="240" cy="50" r="20" fill="rgba(255,209,102,.08)"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <!-- body -->
+          <polygon points="160,60 170,86 198,86 176,102 184,128 160,112 136,128 144,102 122,86 150,86" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          <!-- eyes (happy) -->
+          <path d="M148 74 Q152 70 156 74" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M164 74 Q168 70 172 74" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <!-- big smile -->
+          <path d="M150 88 Q160 97 170 88" stroke="#C47A00" stroke-width="2.5" fill="rgba(255,180,50,.3)" stroke-linecap="round"/>
+          <!-- waving arm (right) -->
+          <g style="transform-origin:184px 102px;animation:wiggle 0.8s ease-in-out infinite">
+            <line x1="184" y1="102" x2="210" y2="86" stroke="#FFD166" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="212" cy="84" r="7" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          </g>
+          <!-- speech bubble -->
+          <rect x="190" y="45" width="100" height="36" rx="10" fill="white" opacity=".95"/>
+          <polygon points="195,81 205,81 198,91" fill="white" opacity=".95"/>
+          <text x="240" y="62" text-anchor="middle" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">안녕!</text>
+          <text x="240" y="76" text-anchor="middle" font-size="10" fill="#666" font-family="Noto Sans KR">나는 별이야 👋</text>
+        </g>
+      </svg>`,
+
+    star_talk: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a1a3e" rx="20"/>
+        <!-- cloud -->
+        <ellipse cx="80" cy="60" rx="40" ry="25" fill="rgba(255,255,255,.1)"/>
+        <ellipse cx="110" cy="50" rx="30" ry="20" fill="rgba(255,255,255,.1)"/>
+        <!-- sun/weather -->
+        <circle cx="250" cy="55" r="30" fill="#FFD166" opacity=".9"/>
+        <line x1="250" y1="15" x2="250" y2="5" stroke="#FFD166" stroke-width="3" stroke-linecap="round"/>
+        <line x1="278" y1="27" x2="285" y2="20" stroke="#FFD166" stroke-width="3" stroke-linecap="round"/>
+        <line x1="290" y1="55" x2="300" y2="55" stroke="#FFD166" stroke-width="3" stroke-linecap="round"/>
+        <g style="animation:float 2.2s ease-in-out infinite">
+          <polygon points="130,100 138,122 162,122 143,136 150,158 130,144 110,158 117,136 98,122 122,122" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="122" cy="112" r="3.5" fill="#2C1810"/>
+          <circle cx="138" cy="112" r="3.5" fill="#2C1810"/>
+          <circle cx="123" cy="110.5" r="1.2" fill="white"/>
+          <circle cx="139" cy="110.5" r="1.2" fill="white"/>
+          <path d="M123 120 Q130 126 137 120" stroke="#C47A00" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- speech -->
+        <rect x="155" y="85" width="140" height="50" rx="12" fill="white" opacity=".95"/>
+        <polygon points="160,135 172,135 165,148" fill="white" opacity=".95"/>
+        <text x="225" y="108" text-anchor="middle" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">오늘은 맑아요! ☀️</text>
+        <text x="225" y="126" text-anchor="middle" font-size="10" fill="#666" font-family="Noto Sans KR">구름 한 점 없어요</text>
+      </svg>`,
+
+    star_friends: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a1a3e" rx="20"/>
+        <!-- multiple AI characters -->
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="90,100 96,118 114,118 100,128 105,146 90,136 75,146 80,128 66,118 84,118" fill="#FFD166" stroke="#F0A500" stroke-width="1.5"/>
+          <circle cx="84" cy="110" r="2.5" fill="#2C1810"/>
+          <circle cx="96" cy="110" r="2.5" fill="#2C1810"/>
+          <path d="M84 118 Q90 122 96 118" stroke="#C47A00" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <g style="animation:float 2.5s .3s ease-in-out infinite">
+          <polygon points="160,85 168,108 192,108 173,122 180,145 160,131 140,145 147,122 128,108 152,108" fill="#FF6B8A" stroke="#CC4466" stroke-width="1.5"/>
+          <circle cx="152" cy="98" r="3" fill="#2C1810"/>
+          <circle cx="168" cy="98" r="3" fill="#2C1810"/>
+          <circle cx="153" cy="96.5" r="1.2" fill="white"/>
+          <circle cx="169" cy="96.5" r="1.2" fill="white"/>
+          <path d="M153 106 Q160 112 167 106" stroke="#CC4466" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <g style="animation:float 2.2s .6s ease-in-out infinite">
+          <polygon points="230,100 236,118 254,118 240,128 245,146 230,136 215,146 220,128 206,118 224,118" fill="#4FC3F7" stroke="#0288D1" stroke-width="1.5"/>
+          <circle cx="224" cy="110" r="2.5" fill="#2C1810"/>
+          <circle cx="236" cy="110" r="2.5" fill="#2C1810"/>
+          <path d="M224 118 Q230 122 236 118" stroke="#0288D1" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text x="160" y="190" text-anchor="middle" font-size="15" font-weight="900" fill="#FFD166" font-family="Noto Sans KR">AI = 인공지능 친구! 🤖</text>
+      </svg>`,
+
+    /* ── WEEK 2 ── */
+    robot_confused: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0a00" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <!-- robot body -->
+          <rect x="125" y="100" width="70" height="80" rx="12" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <!-- head -->
+          <rect x="130" y="62" width="60" height="55" rx="12" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <!-- antenna -->
+          <line x1="160" y1="62" x2="160" y2="44" stroke="#E55A00" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="40" r="6" fill="#FFD166"/>
+          <!-- eyes (question marks) -->
+          <text x="143" y="90" font-size="16" fill="#fff">?</text>
+          <text x="163" y="90" font-size="16" fill="#fff">?</text>
+          <!-- legs -->
+          <rect x="135" y="176" width="18" height="24" rx="6" fill="#E55A00"/>
+          <rect x="167" y="176" width="18" height="24" rx="6" fill="#E55A00"/>
+          <!-- arms -->
+          <rect x="98" y="110" width="30" height="14" rx="7" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <rect x="192" y="110" width="30" height="14" rx="7" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+        </g>
+        <!-- apple with question -->
+        <g style="animation:float 2s .4s ease-in-out infinite">
+          <circle cx="255" cy="110" r="28" fill="#FF4757"/>
+          <path d="M255 82 Q260 75 265 80" stroke="#4CAF50" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <text x="255" y="118" text-anchor="middle" font-size="20">🍎</text>
+        </g>
+        <text x="160" y="222" text-anchor="middle" font-size="13" fill="rgba(255,140,66,.7)" font-family="Noto Sans KR">"이게 뭐지...?"</text>
+      </svg>`,
+
+    robot_learning: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0a00" rx="20"/>
+        <!-- picture cards flying -->
+        <g style="animation:float 1.5s ease-in-out infinite">
+          <rect x="30" y="60" width="50" height="40" rx="6" fill="white" opacity=".9"/>
+          <text x="55" y="86" text-anchor="middle" font-size="20">🍎</text>
+        </g>
+        <g style="animation:float 2s .2s ease-in-out infinite">
+          <rect x="100" y="40" width="50" height="40" rx="6" fill="white" opacity=".9"/>
+          <text x="125" y="66" text-anchor="middle" font-size="20">🍎</text>
+        </g>
+        <g style="animation:float 1.8s .4s ease-in-out infinite">
+          <rect x="185" y="50" width="50" height="40" rx="6" fill="white" opacity=".9"/>
+          <text x="210" y="76" text-anchor="middle" font-size="20">🍎</text>
+        </g>
+        <g style="animation:float 2.2s .6s ease-in-out infinite">
+          <rect x="255" y="65" width="50" height="40" rx="6" fill="white" opacity=".9"/>
+          <text x="280" y="91" text-anchor="middle" font-size="20">🍎</text>
+        </g>
+        <!-- robot absorbing -->
+        <g style="animation:float 2s ease-in-out infinite">
+          <rect x="130" y="120" width="60" height="70" rx="10" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <rect x="135" y="88" width="50" height="46" rx="10" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <line x1="160" y1="88" x2="160" y2="74" stroke="#E55A00" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="70" r="6" fill="#FFD166" style="animation:twinkle 0.8s infinite"/>
+          <!-- happy scanning eyes -->
+          <rect x="142" y="102" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <rect x="166" y="102" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <path d="M145 120 Q160 127 175 120" stroke="#E55A00" stroke-width="2" fill="rgba(255,200,100,.3)" stroke-linecap="round"/>
+        </g>
+        <text x="160" y="220" text-anchor="middle" font-size="12" fill="rgba(255,140,66,.7)" font-family="Noto Sans KR">1000장 학습 중... 💡</text>
+      </svg>`,
+
+    robot_smart: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0a00" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <rect x="125" y="105" width="70" height="75" rx="12" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <rect x="130" y="66" width="60" height="52" rx="12" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <line x1="160" y1="66" x2="160" y2="50" stroke="#E55A00" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="45" r="8" fill="#FFD166"/>
+          <text x="160" y="49" text-anchor="middle" font-size="10">💡</text>
+          <!-- clever eyes -->
+          <path d="M142 82 Q150 78 158 82" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M162 82 Q170 78 178 82" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M144 92 Q160 100 176 92" stroke="#E55A00" stroke-width="2.5" fill="rgba(255,180,50,.3)" stroke-linecap="round"/>
+          <!-- legs -->
+          <rect x="134" y="176" width="18" height="22" rx="6" fill="#E55A00"/>
+          <rect x="168" y="176" width="18" height="22" rx="6" fill="#E55A00"/>
+        </g>
+        <!-- lightbulb effect -->
+        <circle cx="160" cy="45" r="30" fill="#FFD166" opacity=".15" style="animation:twinkle 1.5s infinite"/>
+        <text x="160" y="220" text-anchor="middle" font-size="13" fill="#FFD166" font-family="Noto Sans KR" font-weight="700">이제 다 알아요! ✨</text>
+      </svg>`,
+
+    robot_happy: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0a00" rx="20"/>
+        <g style="animation:float 1.8s ease-in-out infinite">
+          <rect x="120" y="105" width="80" height="75" rx="14" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <rect x="125" y="62" width="70" height="56" rx="14" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+          <line x1="160" y1="62" x2="160" y2="44" stroke="#E55A00" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="40" r="7" fill="#FFD166"/>
+          <path d="M147 80 Q150 76 154 80" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M166 80 Q170 76 174 80" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M146 92 Q160 103 174 92" stroke="#E55A00" stroke-width="2.5" fill="rgba(255,180,50,.3)" stroke-linecap="round"/>
+          <ellipse cx="140" cy="96" rx="6" ry="4" fill="#FF6B8A" opacity=".5"/>
+          <ellipse cx="180" cy="96" rx="6" ry="4" fill="#FF6B8A" opacity=".5"/>
+          <rect x="130" y="176" width="20" height="24" rx="7" fill="#E55A00"/>
+          <rect x="170" y="176" width="20" height="24" rx="7" fill="#E55A00"/>
+        </g>
+        <!-- fruits floating around -->
+        <text x="55" y="100" font-size="28" style="animation:float 2s ease-in-out infinite">🍎</text>
+        <text x="245" y="95" font-size="24" style="animation:float 2.3s .3s ease-in-out infinite">🍌</text>
+        <text x="50" y="160" font-size="22" style="animation:float 1.8s .6s ease-in-out infinite">🍇</text>
+        <text x="252" y="155" font-size="22" style="animation:float 2.1s .2s ease-in-out infinite">🍓</text>
+        <text x="160" y="220" text-anchor="middle" font-size="13" fill="#FFD166" font-family="Noto Sans KR" font-weight="700">뚜루가 다 배웠어요! 🎊</text>
+      </svg>`,
+
+    /* ── WEEK 3 – simplified ── */
+    camera_eye: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#100a00" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <rect x="110" y="80" width="100" height="90" rx="16" fill="#FFD166" stroke="#F0A500" stroke-width="2.5"/>
+          <!-- camera eyes -->
+          <circle cx="140" cy="118" r="18" fill="#1a1a2e" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="180" cy="118" r="18" fill="#1a1a2e" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="140" cy="118" r="12" fill="#00BCD4"/>
+          <circle cx="180" cy="118" r="12" fill="#00BCD4"/>
+          <circle cx="140" cy="118" r="6" fill="#2C1810"/>
+          <circle cx="180" cy="118" r="6" fill="#2C1810"/>
+          <circle cx="143" cy="115" r="2.5" fill="white"/>
+          <circle cx="183" cy="115" r="2.5" fill="white"/>
+          <!-- antenna -->
+          <line x1="160" y1="80" x2="160" y2="60" stroke="#F0A500" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="56" r="7" fill="#FF6B8A"/>
+          <!-- mouth -->
+          <path d="M138 148 Q160 158 182 148" stroke="#F0A500" stroke-width="2.5" fill="rgba(255,200,50,.3)" stroke-linecap="round"/>
+          <!-- scan rings -->
+          <circle cx="140" cy="118" r="22" fill="none" stroke="#00BCD4" stroke-width="1" opacity=".5" style="animation:twinkle 1.5s infinite"/>
+          <circle cx="180" cy="118" r="22" fill="none" stroke="#00BCD4" stroke-width="1" opacity=".5" style="animation:twinkle 1.5s .3s infinite"/>
+        </g>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#FFD166" font-family="Noto Sans KR" font-weight="700">카메라 눈으로 세상을 봐요! 📷</text>
+      </svg>`,
+
+    camera_flower: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#100a00" rx="20"/>
+        <!-- flower -->
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="85" cy="140" r="18" fill="#FF6B8A"/>
+          <circle cx="85" cy="108" r="18" fill="#FF6B8A"/>
+          <circle cx="67" cy="124" r="18" fill="#FF6B8A"/>
+          <circle cx="103" cy="124" r="18" fill="#FF6B8A"/>
+          <circle cx="85" cy="124" r="20" fill="#FFD166"/>
+          <text x="85" y="131" text-anchor="middle" font-size="14">🌷</text>
+          <line x1="85" y1="142" x2="85" y2="185" stroke="#4CAF50" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        <!-- robot scanning arrow -->
+        <line x1="130" y1="124" x2="175" y2="124" stroke="#00BCD4" stroke-width="3" stroke-dasharray="6,4" stroke-linecap="round"/>
+        <polygon points="175,118 175,130 185,124" fill="#00BCD4"/>
+        <!-- robot -->
+        <g style="animation:float 2.2s .3s ease-in-out infinite">
+          <rect x="188" y="96" width="72" height="68" rx="12" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="210" cy="128" r="12" fill="#1a1a2e"/>
+          <circle cx="248" cy="128" r="12" fill="#1a1a2e"/>
+          <circle cx="210" cy="128" r="7" fill="#00BCD4"/>
+          <circle cx="248" cy="128" r="7" fill="#00BCD4"/>
+          <circle cx="212" cy="126" r="2" fill="white"/>
+          <circle cx="250" cy="126" r="2" fill="white"/>
+        </g>
+        <!-- speech bubble -->
+        <rect x="195" y="52" width="115" height="36" rx="10" fill="white" opacity=".95"/>
+        <polygon points="215,88 228,88 220,100" fill="white" opacity=".95"/>
+        <text x="252" y="70" text-anchor="middle" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">🌷 튤립꽃이에요!</text>
+        <text x="252" y="84" text-anchor="middle" font-size="10" fill="#666" font-family="Noto Sans KR">정확도 99%</text>
+      </svg>`,
+
+    camera_animals: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#100a00" rx="20"/>
+        <text x="70" y="120" text-anchor="middle" font-size="50" style="animation:float 2s ease-in-out infinite">🐱</text>
+        <text x="250" y="120" text-anchor="middle" font-size="50" style="animation:float 2.3s .3s ease-in-out infinite">🐶</text>
+        <!-- center robot -->
+        <g style="animation:float 2s .2s ease-in-out infinite">
+          <rect x="128" y="90" width="64" height="60" rx="12" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="147" cy="118" r="12" fill="#1a1a2e"/>
+          <circle cx="173" cy="118" r="12" fill="#1a1a2e"/>
+          <circle cx="147" cy="118" r="7" fill="#00BCD4"/>
+          <circle cx="173" cy="118" r="7" fill="#00BCD4"/>
+          <circle cx="149" cy="116" r="2.2" fill="white"/>
+          <circle cx="175" cy="116" r="2.2" fill="white"/>
+          <path d="M142 140 Q160 150 178 140" stroke="#F0A500" stroke-width="2" fill="rgba(255,200,50,.2)" stroke-linecap="round"/>
+        </g>
+        <text x="70" y="160" text-anchor="middle" font-size="13" fill="#FF6B8A" font-family="Noto Sans KR" font-weight="700">야옹이!😸</text>
+        <text x="250" y="160" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">강아지!🐾</text>
+      </svg>`,
+
+    camera_wow: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#100a00" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <rect x="110" y="75" width="100" height="90" rx="16" fill="#FFD166" stroke="#F0A500" stroke-width="2.5"/>
+          <circle cx="140" cy="118" r="16" fill="#1a1a2e" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="180" cy="118" r="16" fill="#1a1a2e" stroke="#F0A500" stroke-width="2"/>
+          <circle cx="140" cy="118" r="10" fill="#00BCD4"/>
+          <circle cx="180" cy="118" r="10" fill="#00BCD4"/>
+          <circle cx="140" cy="118" r="5" fill="#2C1810"/>
+          <circle cx="180" cy="118" r="5" fill="#2C1810"/>
+          <circle cx="143" cy="115" r="2" fill="white"/>
+          <circle cx="183" cy="115" r="2" fill="white"/>
+          <ellipse cx="128" cy="130" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+          <ellipse cx="192" cy="130" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+          <path d="M134 144 Q160 158 186 144" stroke="#F0A500" stroke-width="2.5" fill="rgba(255,200,50,.3)" stroke-linecap="round"/>
+          <line x1="160" y1="75" x2="160" y2="55" stroke="#F0A500" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="50" r="7" fill="#FF6B8A" style="animation:twinkle 1s infinite"/>
+        </g>
+        <!-- sparkles -->
+        <text x="55" y="90" font-size="20" style="animation:float 1.5s ease-in-out infinite">✨</text>
+        <text x="250" y="85" font-size="20" style="animation:float 2s .3s ease-in-out infinite">✨</text>
+        <text x="40" y="160" font-size="18" style="animation:float 1.8s .6s ease-in-out infinite">⭐</text>
+        <text x="260" y="155" font-size="18" style="animation:float 2.2s .2s ease-in-out infinite">⭐</text>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#FFD166" font-family="Noto Sans KR" font-weight="700">AI의 눈, 신기하지요? 🌟</text>
+      </svg>`,
+
+    /* ── WEEKS 4-8 – concise scenes ── */
+    ear_call: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#002616" rx="20"/>
+        <!-- child calling -->
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="80" cy="100" r="32" fill="#FDDCB5"/>
+          <circle cx="80" cy="75" r="18" fill="#2C1810" opacity=".2"/>
+          <ellipse cx="80" cy="105" rx="18" ry="20" fill="#FDDCB5"/>
+          <text x="80" y="108" text-anchor="middle" font-size="22">👦</text>
+          <rect x="55" y="130" width="50" height="60" rx="10" fill="#06D6A0" opacity=".8"/>
+        </g>
+        <!-- sound waves -->
+        <path d="M115 90 Q135 90 135 90" stroke="#06D6A0" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>
+        <path d="M115 90 Q145 75 145 90 Q145 105 115 90" stroke="#06D6A0" stroke-width="2" fill="none" opacity=".6"/>
+        <path d="M115 90 Q155 60 155 90 Q155 120 115 90" stroke="#06D6A0" stroke-width="1.5" fill="none" opacity=".3"/>
+        <!-- star robot responding -->
+        <g style="animation:float 2.3s .3s ease-in-out infinite">
+          <polygon points="220,85 230,112 258,112 237,128 245,155 220,139 195,155 203,128 182,112 210,112" fill="#06D6A0" stroke="#04A07A" stroke-width="2"/>
+          <path d="M210 98 Q214 94 218 98" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M222 98 Q226 94 230 98" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M210 108 Q220 116 230 108" stroke="#04A07A" stroke-width="2" fill="rgba(4,160,122,.2)" stroke-linecap="round"/>
+        </g>
+        <!-- speech bubble -->
+        <rect x="158" y="50" width="140" height="30" rx="8" fill="white" opacity=".95"/>
+        <polygon points="175,80 185,80 179,92" fill="white" opacity=".95"/>
+        <text x="228" y="70" text-anchor="middle" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">네, 여기 있어요! 🌟</text>
+      </svg>`,
+
+    ear_listen: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#002616" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="160,70 172,104 208,104 180,124 190,158 160,138 130,158 140,124 112,104 148,104" fill="#06D6A0" stroke="#04A07A" stroke-width="2.5"/>
+          <circle cx="148" cy="86" r="4" fill="#2C1810"/>
+          <circle cx="172" cy="86" r="4" fill="#2C1810"/>
+          <circle cx="149.5" cy="84.5" r="1.5" fill="white"/>
+          <circle cx="173.5" cy="84.5" r="1.5" fill="white"/>
+          <path d="M149 98 Q160 108 171 98" stroke="#04A07A" stroke-width="2.5" fill="rgba(4,160,122,.2)" stroke-linecap="round"/>
+          <!-- ear symbol -->
+          <text x="205" y="85" font-size="24" style="animation:wiggle 1s ease-in-out infinite">👂</text>
+        </g>
+        <!-- sound to text -->
+        <text x="60" y="170" font-size="12" fill="rgba(6,214,160,.6)" font-family="Noto Sans KR">🗣 "안녕"</text>
+        <text x="200" y="178" font-size="12" fill="rgba(6,214,160,.8)" font-family="Noto Sans KR" font-weight="700">→ "안녕" 📝</text>
+        <text x="160" y="215" text-anchor="middle" font-size="12" fill="#06D6A0" font-family="Noto Sans KR">말소리 → 글자로 변환!</text>
+      </svg>`,
+
+    ear_command: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#002616" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="160,75 170,102 198,102 176,118 184,145 160,129 136,145 144,118 122,102 150,102" fill="#06D6A0" stroke="#04A07A" stroke-width="2"/>
+          <path d="M148 88 Q152 84 156 88" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M164 88 Q168 84 172 88" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M149 100 Q160 110 171 100" stroke="#04A07A" stroke-width="2" fill="rgba(4,160,122,.2)" stroke-linecap="round"/>
+        </g>
+        <text x="45" y="115" font-size="22" style="animation:float 1.8s ease-in-out infinite">🎵</text>
+        <text x="240" y="100" font-size="22" style="animation:float 2.2s .3s ease-in-out infinite">📖</text>
+        <text x="45" y="165" font-size="11" fill="rgba(6,214,160,.7)" font-family="Noto Sans KR">"노래 틀어줘"→🎵</text>
+        <text x="200" y="155" font-size="11" fill="rgba(6,214,160,.7)" font-family="Noto Sans KR">"동화 읽어줘"→📖</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#06D6A0" font-family="Noto Sans KR" font-weight="700">말하면 바로 들어줘요! 🎉</text>
+      </svg>`,
+
+    ear_happy: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#002616" rx="20"/>
+        <g style="animation:float 1.8s ease-in-out infinite">
+          <polygon points="160,65 172,98 208,98 180,118 190,152 160,132 130,152 140,118 112,98 148,98" fill="#06D6A0" stroke="#04A07A" stroke-width="2.5"/>
+          <path d="M147 80 Q151 76 155 80" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M165 80 Q169 76 173 80" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M148 92 Q160 104 172 92" stroke="#04A07A" stroke-width="2.5" fill="rgba(4,160,122,.3)" stroke-linecap="round"/>
+          <ellipse cx="140" cy="98" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+          <ellipse cx="180" cy="98" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+        </g>
+        <text x="55" y="90" font-size="22" style="animation:float 2s ease-in-out infinite">💚</text>
+        <text x="240" y="90" font-size="22" style="animation:float 2.3s .3s ease-in-out infinite">💚</text>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#06D6A0" font-family="Noto Sans KR" font-weight="700">친절한 AI 친구! 🌿</text>
+      </svg>`,
+
+    draw_request: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#000d1a" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="80" cy="110" r="35" fill="#FDDCB5"/>
+          <text x="80" y="118" text-anchor="middle" font-size="26">👧</text>
+          <rect x="55" y="140" width="50" height="60" rx="10" fill="#4FC3F7" opacity=".8"/>
+        </g>
+        <rect x="200" y="80" width="100" height="55" rx="12" fill="white" opacity=".95"/>
+        <polygon points="208,135 218,135 212,148" fill="white" opacity=".95"/>
+        <text x="250" y="102" text-anchor="middle" font-size="10" fill="#333" font-family="Noto Sans KR" font-weight="700">하늘 나는 고양이</text>
+        <text x="250" y="118" text-anchor="middle" font-size="10" fill="#666" font-family="Noto Sans KR">그려줘! 🐱✈️</text>
+        <g style="animation:float 2.2s .3s ease-in-out infinite">
+          <polygon points="160,170 166,188 184,188 170,198 175,216 160,206 145,216 150,198 136,188 154,188" fill="#4FC3F7" stroke="#0288D1" stroke-width="1.5"/>
+          <circle cx="154" cy="178" r="3" fill="#2C1810"/>
+          <circle cx="166" cy="178" r="3" fill="#2C1810"/>
+          <path d="M154 186 Q160 192 166 186" stroke="#0288D1" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        </g>
+      </svg>`,
+
+    draw_create: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#000d1a" rx="20"/>
+        <!-- canvas -->
+        <rect x="60" y="50" width="200" height="150" rx="10" fill="white" opacity=".9"/>
+        <!-- flying cat drawing -->
+        <text x="160" y="148" text-anchor="middle" font-size="60">🐱</text>
+        <!-- sky elements -->
+        <ellipse cx="110" cy="85" rx="24" ry="14" fill="#87CEEB" opacity=".4"/>
+        <ellipse cx="200" cy="75" rx="20" ry="12" fill="#87CEEB" opacity=".4"/>
+        <text x="80" y="95" font-size="18">☀️</text>
+        <!-- sparkle effect -->
+        <text x="52" y="55" font-size="16" style="animation:twinkle 1s infinite">✨</text>
+        <text x="248" y="50" font-size="16" style="animation:twinkle 1.3s .3s infinite">✨</text>
+        <text x="50" y="200" font-size="14" style="animation:twinkle 1.5s .6s infinite">✨</text>
+        <text x="255" y="195" font-size="14" style="animation:twinkle 1.2s .1s infinite">✨</text>
+        <text x="160" y="220" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">짠! 그림이 나타났어요! 🎨</text>
+      </svg>`,
+
+    draw_wow: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#000d1a" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="80" cy="105" r="35" fill="#FDDCB5"/>
+          <text x="80" y="116" text-anchor="middle" font-size="26">😲</text>
+          <rect x="55" y="138" width="50" height="60" rx="10" fill="#4FC3F7" opacity=".8"/>
+        </g>
+        <!-- canvas with cat -->
+        <rect x="140" y="55" width="150" height="120" rx="10" fill="white" opacity=".9"/>
+        <text x="215" y="135" text-anchor="middle" font-size="55">🐱</text>
+        <text x="170" y="80" font-size="14">☁️</text>
+        <text x="240" y="75" font-size="12">☁️</text>
+        <!-- wow text -->
+        <text x="55" y="60" font-size="22" fill="#FFD166" font-family="Noto Sans KR" font-weight="900" style="animation:float 1.5s ease-in-out infinite">우와!</text>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">상상이 그림이 됐어요! 🌈</text>
+      </svg>`,
+
+    draw_ideas: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#000d1a" rx="20"/>
+        <text x="55" y="95" font-size="35" style="animation:float 2s ease-in-out infinite">🌈</text>
+        <text x="140" y="80" font-size="35" style="animation:float 2.3s .2s ease-in-out infinite">🐰</text>
+        <text x="220" y="95" font-size="35" style="animation:float 1.8s .4s ease-in-out infinite">🚗</text>
+        <text x="80" y="170" font-size="30" style="animation:float 2.1s .6s ease-in-out infinite">🐶</text>
+        <text x="165" y="175" font-size="30" style="animation:float 2.4s .1s ease-in-out infinite">🚀</text>
+        <text x="240" y="165" font-size="30" style="animation:float 1.9s .5s ease-in-out infinite">🌸</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">뭐든지 그릴 수 있어요! 🎨</text>
+      </svg>`,
+
+    robot_strong: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#001030" rx="20"/>
+        <g style="animation:float 1.8s ease-in-out infinite">
+          <rect x="118" y="105" width="84" height="80" rx="14" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2.5"/>
+          <rect x="123" y="64" width="74" height="54" rx="14" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2.5"/>
+          <line x1="160" y1="64" x2="160" y2="46" stroke="#1A56DB" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="42" r="8" fill="#FFD166"/>
+          <rect x="140" y="80" width="14" height="10" rx="4" fill="#00BCD4"/>
+          <rect x="166" y="80" width="14" height="10" rx="4" fill="#00BCD4"/>
+          <path d="M140 100 Q160 110 180 100" stroke="#1A56DB" stroke-width="2.5" fill="rgba(29,86,219,.2)" stroke-linecap="round"/>
+          <!-- strong arms -->
+          <rect x="78" y="108" width="44" height="18" rx="9" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <circle cx="72" cy="117" r="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="198" y="108" width="44" height="18" rx="9" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <circle cx="248" cy="117" r="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <!-- muscle emoji -->
+          <text x="62" y="90" font-size="18" style="animation:wiggle 1s ease-in-out infinite">💪</text>
+          <text x="240" y="90" font-size="18" style="animation:wiggle 1s .3s ease-in-out infinite">💪</text>
+          <!-- legs -->
+          <rect x="128" y="181" width="22" height="26" rx="8" fill="#1A56DB"/>
+          <rect x="170" y="181" width="22" height="26" rx="8" fill="#1A56DB"/>
+        </g>
+      </svg>`,
+
+    robot_carry: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#001030" rx="20"/>
+        <!-- boxes -->
+        <rect x="60" y="60" width="50" height="50" rx="6" fill="#FF8C42" stroke="#E55A00" stroke-width="2"/>
+        <rect x="72" y="48" width="50" height="50" rx="6" fill="#FFD166" stroke="#F0A500" stroke-width="2"/>
+        <rect x="84" y="36" width="50" height="50" rx="6" fill="#FF6B8A" stroke="#CC4466" stroke-width="2"/>
+        <!-- robot carrying -->
+        <g style="animation:float 1.6s ease-in-out infinite">
+          <rect x="128" y="120" width="64" height="72" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="133" y="86" width="54" height="46" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <line x1="160" y1="86" x2="160" y2="68" stroke="#1A56DB" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="64" r="7" fill="#FFD166"/>
+          <rect x="143" y="100" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <rect x="165" y="100" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <path d="M143 118 Q160 128 177 118" stroke="#1A56DB" stroke-width="2" fill="rgba(29,86,219,.2)" stroke-linecap="round"/>
+          <rect x="88" y="110" width="44" height="16" rx="8" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="188" y="110" width="44" height="16" rx="8" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="134" y="188" width="20" height="24" rx="7" fill="#1A56DB"/>
+          <rect x="166" y="188" width="20" height="24" rx="7" fill="#1A56DB"/>
+        </g>
+        <text x="160" y="220" text-anchor="middle" font-size="12" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">무거워도 거뜬해요! 💪</text>
+      </svg>`,
+
+    robot_help: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#001030" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <rect x="126" y="105" width="68" height="72" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="131" y="68" width="58" height="48" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <line x1="160" y1="68" x2="160" y2="50" stroke="#1A56DB" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="160" cy="46" r="7" fill="#FFD166"/>
+          <rect x="142" y="84" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <rect x="166" y="84" width="12" height="8" rx="3" fill="#00BCD4"/>
+          <path d="M142 102 Q160 112 178 102" stroke="#1A56DB" stroke-width="2" fill="rgba(29,86,219,.2)" stroke-linecap="round"/>
+          <rect x="132" y="173" width="18" height="22" rx="6" fill="#1A56DB"/>
+          <rect x="170" y="173" width="18" height="22" rx="6" fill="#1A56DB"/>
+        </g>
+        <text x="55" y="110" font-size="26" style="animation:float 2s ease-in-out infinite">🏥</text>
+        <text x="240" y="110" font-size="26" style="animation:float 2.2s .3s ease-in-out infinite">🧹</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">여러 곳에서 도와줘요! 🤝</text>
+      </svg>`,
+
+    robot_together: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#001030" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="90" cy="110" r="32" fill="#FDDCB5"/>
+          <text x="90" y="120" text-anchor="middle" font-size="24">👨‍👩‍👧</text>
+          <rect x="65" y="140" width="50" height="50" rx="10" fill="#4FC3F7" opacity=".7"/>
+        </g>
+        <text x="155" y="125" text-anchor="middle" font-size="28">🤝</text>
+        <g style="animation:float 2.2s .3s ease-in-out infinite">
+          <rect x="178" y="105" width="62" height="68" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <rect x="183" y="72" width="52" height="44" rx="12" fill="#3D7EFF" stroke="#1A56DB" stroke-width="2"/>
+          <line x1="209" y1="72" x2="209" y2="56" stroke="#1A56DB" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="209" cy="52" r="6" fill="#FFD166"/>
+          <rect x="191" y="85" width="10" height="7" rx="2.5" fill="#00BCD4"/>
+          <rect x="208" y="85" width="10" height="7" rx="2.5" fill="#00BCD4"/>
+          <path d="M191 98 Q209 107 227 98" stroke="#1A56DB" stroke-width="2" fill="rgba(29,86,219,.2)" stroke-linecap="round"/>
+          <rect x="186" y="169" width="16" height="20" rx="5" fill="#1A56DB"/>
+          <rect x="208" y="169" width="16" height="20" rx="5" fill="#1A56DB"/>
+        </g>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#4FC3F7" font-family="Noto Sans KR" font-weight="700">사람과 로봇이 함께! 🌍</text>
+      </svg>`,
+
+    good_heart: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#0d001a" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="160,68 172,102 208,102 180,122 190,156 160,136 130,156 140,122 112,102 148,102" fill="#9B5DE5" stroke="#7B2FBE" stroke-width="2.5"/>
+          <path d="M148 82 Q152 78 156 82" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M164 82 Q168 78 172 82" stroke="#2C1810" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M149 94 Q160 106 171 94" stroke="#7B2FBE" stroke-width="2.5" fill="rgba(123,47,190,.2)" stroke-linecap="round"/>
+          <ellipse cx="140" cy="100" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+          <ellipse cx="180" cy="100" rx="6" ry="4" fill="#FF9AB0" opacity=".5"/>
+        </g>
+        <text x="55" y="95" font-size="30" style="animation:float 1.8s ease-in-out infinite">💛</text>
+        <text x="240" y="95" font-size="30" style="animation:float 2.2s .3s ease-in-out infinite">💛</text>
+        <text x="55" y="160" font-size="26" style="animation:float 2s .5s ease-in-out infinite">💜</text>
+        <text x="245" y="160" font-size="26" style="animation:float 1.7s .2s ease-in-out infinite">💜</text>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#C49AFF" font-family="Noto Sans KR" font-weight="700">별이는 항상 착해요! 💛</text>
+      </svg>`,
+
+    good_no: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#0d001a" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="160,68 170,96 198,96 176,112 184,140 160,124 136,140 144,112 122,96 150,96" fill="#9B5DE5" stroke="#7B2FBE" stroke-width="2"/>
+          <!-- shaking head / X expression -->
+          <line x1="148" y1="80" x2="156" y2="88" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="156" y1="80" x2="148" y2="88" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="164" y1="80" x2="172" y2="88" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="172" y1="80" x2="164" y2="88" stroke="#2C1810" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M150 102 Q160 96 170 102" stroke="#7B2FBE" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- speech bubble -->
+        <rect x="185" y="46" width="120" height="46" rx="12" fill="white" opacity=".95"/>
+        <polygon points="195,92 208,92 200,105" fill="white" opacity=".95"/>
+        <text x="245" y="66" text-anchor="middle" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">그건 안 돼요! 🚫</text>
+        <text x="245" y="84" text-anchor="middle" font-size="10" fill="#666" font-family="Noto Sans KR">친구는 소중하니까요</text>
+        <!-- X sign -->
+        <circle cx="80" cy="130" r="28" fill="rgba(255,71,87,.2)" stroke="#FF4757" stroke-width="2"/>
+        <text x="80" y="142" text-anchor="middle" font-size="28">🚫</text>
+      </svg>`,
+
+    good_rules: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#0d001a" rx="20"/>
+        <!-- rulebook -->
+        <rect x="40" y="55" width="100" height="130" rx="10" fill="white" opacity=".9"/>
+        <rect x="44" y="55" width="12" height="130" rx="6" fill="#9B5DE5"/>
+        <text x="72" y="95" font-size="11" fill="#333" font-family="Noto Sans KR" font-weight="700">착한 AI</text>
+        <text x="72" y="113" font-size="11" fill="#333" font-family="Noto Sans KR">규칙</text>
+        <text x="58" y="135" font-size="10" fill="#555" font-family="Noto Sans KR">✓ 도움주기</text>
+        <text x="58" y="152" font-size="10" fill="#555" font-family="Noto Sans KR">✓ 착한 말</text>
+        <text x="58" y="169" font-size="10" fill="#555" font-family="Noto Sans KR">✗ 거짓말</text>
+        <!-- star -->
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="220,78 228,102 254,102 234,116 241,140 220,126 199,140 206,116 186,102 212,102" fill="#9B5DE5" stroke="#7B2FBE" stroke-width="2"/>
+          <path d="M210 90 Q214 86 218 90" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M222 90 Q226 86 230 90" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M211 100 Q220 108 229 100" stroke="#7B2FBE" stroke-width="2" fill="rgba(123,47,190,.2)" stroke-linecap="round"/>
+        </g>
+        <text x="160" y="210" text-anchor="middle" font-size="13" fill="#C49AFF" font-family="Noto Sans KR" font-weight="700">AI를 바르게 써요! ⭐</text>
+      </svg>`,
+
+    good_together: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#0d001a" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <circle cx="90" cy="108" r="30" fill="#FDDCB5"/>
+          <text x="90" y="118" text-anchor="middle" font-size="22">👧</text>
+          <rect x="66" y="136" width="48" height="55" rx="10" fill="#9B5DE5" opacity=".7"/>
+        </g>
+        <text x="152" y="122" text-anchor="middle" font-size="24">🤝</text>
+        <g style="animation:float 2.2s .3s ease-in-out infinite">
+          <polygon points="225,80 233,104 258,104 238,118 245,142 225,128 205,142 212,118 192,104 217,104" fill="#9B5DE5" stroke="#7B2FBE" stroke-width="2"/>
+          <path d="M215 92 Q219 88 223 92" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M227 92 Q231 88 235 92" stroke="#2C1810" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M215 102 Q225 112 235 102" stroke="#7B2FBE" stroke-width="2" fill="rgba(123,47,190,.2)" stroke-linecap="round"/>
+        </g>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#C49AFF" font-family="Noto Sans KR" font-weight="700">함께라서 더 좋아요! 💜</text>
+      </svg>`,
+
+    make_wonder: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0010" rx="20"/>
+        <!-- group of children thinking -->
+        <text x="65" y="125" text-anchor="middle" font-size="38" style="animation:float 2s ease-in-out infinite">👦</text>
+        <text x="160" y="115" text-anchor="middle" font-size="38" style="animation:float 2.3s .2s ease-in-out infinite">👧</text>
+        <text x="255" y="125" text-anchor="middle" font-size="38" style="animation:float 1.8s .4s ease-in-out infinite">👦</text>
+        <!-- thought bubbles -->
+        <circle cx="100" cy="68" r="8" fill="rgba(247,37,133,.2)" stroke="#F72585" stroke-width="1.5"/>
+        <circle cx="115" cy="52" r="12" fill="rgba(247,37,133,.2)" stroke="#F72585" stroke-width="1.5"/>
+        <text x="115" y="57" text-anchor="middle" font-size="14">🤔</text>
+        <circle cx="200" cy="60" r="8" fill="rgba(247,37,133,.2)" stroke="#F72585" stroke-width="1.5"/>
+        <circle cx="215" cy="44" r="12" fill="rgba(247,37,133,.2)" stroke="#F72585" stroke-width="1.5"/>
+        <text x="215" y="49" text-anchor="middle" font-size="14">💭</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#FF80B0" font-family="Noto Sans KR" font-weight="700">우리도 만들 수 있을까? 🤔</text>
+      </svg>`,
+
+    make_rules: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0010" rx="20"/>
+        <!-- traffic light -->
+        <rect x="110" y="50" width="60" height="140" rx="10" fill="#333" stroke="#555" stroke-width="2"/>
+        <circle cx="140" cy="88" r="20" fill="#FF4757"/>
+        <circle cx="140" cy="120" r="20" fill="#FFD166" opacity=".4"/>
+        <circle cx="140" cy="152" r="20" fill="#06D6A0" opacity=".4"/>
+        <!-- arrow indicators -->
+        <rect x="186" y="78" width="80" height="26" rx="6" fill="rgba(255,71,87,.2)" stroke="#FF4757" stroke-width="1.5"/>
+        <text x="226" y="96" text-anchor="middle" font-size="11" fill="#FF4757" font-family="Noto Sans KR" font-weight="700">빨강 → 멈춰!</text>
+        <rect x="186" y="142" width="80" height="26" rx="6" fill="rgba(6,214,160,.2)" stroke="#06D6A0" stroke-width="1.5"/>
+        <text x="226" y="160" text-anchor="middle" font-size="11" fill="#06D6A0" font-family="Noto Sans KR" font-weight="700">초록 → 가!</text>
+        <!-- pole -->
+        <rect x="134" y="188" width="12" height="42" rx="4" fill="#555"/>
+        <text x="160" y="240" text-anchor="middle" font-size="12" fill="#FF80B0" font-family="Noto Sans KR">이것도 규칙 = AI!</text>
+      </svg>`,
+
+    make_code: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0010" rx="20"/>
+        <!-- code blocks -->
+        <rect x="30" y="50" width="260" height="140" rx="12" fill="#1a1a2e" border="1" stroke="rgba(247,37,133,.3)" stroke-width="2"/>
+        <text x="50" y="82" font-size="12" fill="#F72585" font-family="monospace" font-weight="700">만약 (빨간불) → 멈추기</text>
+        <text x="50" y="105" font-size="12" fill="#FFD166" font-family="monospace">만약 (초록불) → 가기</text>
+        <text x="50" y="128" font-size="12" fill="#06D6A0" font-family="monospace">만약 (배고프면) → 밥먹기</text>
+        <text x="50" y="151" font-size="12" fill="#4FC3F7" font-family="monospace">만약 (졸리면) → 자기</text>
+        <text x="50" y="174" font-size="12" fill="#9B5DE5" font-family="monospace" opacity=".7">← 이게 바로 AI! ✨</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#FF80B0" font-family="Noto Sans KR" font-weight="700">규칙 = AI의 시작! 🔧</text>
+      </svg>`,
+
+    make_future: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a0010" rx="20"/>
+        <!-- rocket + children -->
+        <text x="140" y="130" text-anchor="middle" font-size="70" style="animation:float 2s ease-in-out infinite">🚀</text>
+        <text x="64" y="145" text-anchor="middle" font-size="28" style="animation:float 2.2s .2s ease-in-out infinite">👧</text>
+        <text x="218" y="140" text-anchor="middle" font-size="28" style="animation:float 1.9s .4s ease-in-out infinite">👦</text>
+        <!-- stars -->
+        <text x="40" y="70" font-size="18" style="animation:twinkle 1.5s ease-in-out infinite">⭐</text>
+        <text x="260" y="65" font-size="18" style="animation:twinkle 2s .3s ease-in-out infinite">⭐</text>
+        <text x="35" y="160" font-size="16" style="animation:twinkle 1.8s .6s ease-in-out infinite">✨</text>
+        <text x="265" y="155" font-size="16" style="animation:twinkle 1.6s .2s ease-in-out infinite">✨</text>
+        <text x="160" y="215" text-anchor="middle" font-size="13" fill="#FF80B0" font-family="Noto Sans KR" font-weight="700">미래의 AI 개발자가 될 수 있어요! 🚀</text>
+      </svg>`,
+
+    default: `
+      <svg class="scene-svg" viewBox="0 0 320 240">
+        <rect width="320" height="240" fill="#1a1a3e" rx="20"/>
+        <g style="animation:float 2s ease-in-out infinite">
+          <polygon points="160,70 172,104 208,104 180,124 190,158 160,138 130,158 140,124 112,104 148,104" fill="#FFD166" stroke="#F0A500" stroke-width="2.5"/>
+          <circle cx="148" cy="86" r="4" fill="#2C1810"/>
+          <circle cx="172" cy="86" r="4" fill="#2C1810"/>
+          <circle cx="149.5" cy="84.5" r="1.5" fill="white"/>
+          <circle cx="173.5" cy="84.5" r="1.5" fill="white"/>
+          <path d="M149 98 Q160 108 171 98" stroke="#F0A500" stroke-width="2.5" fill="rgba(240,165,0,.2)" stroke-linecap="round"/>
+        </g>
+        <text x="160" y="210" text-anchor="middle" font-size="14" fill="#FFD166" font-family="Noto Sans KR">✨ 별이와 함께해요 ✨</text>
+      </svg>`
+  };
+
+  return `<div class="float">${scenes[sceneKey] || scenes.default}</div>`;
+}
+
+/* ─── INIT ───────────────────────────────────────────── */
+createStars();
+renderHome();
+</script>
+</body>
+</html>

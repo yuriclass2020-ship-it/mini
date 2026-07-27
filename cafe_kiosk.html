@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>☕ 야옹카페 키오스크</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --cream: #fff7ef;
+    --brown: #6b4a36;
+    --brown-soft: #8a6a54;
+    --pink: #ff9ec4;
+    --pink-deep: #ff6fa5;
+    --mint: #7fd6c2;
+    --yellow: #ffd66b;
+    --card: #ffffff;
+    --shadow: 0 6px 18px rgba(107,74,54,0.12);
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
+    background: linear-gradient(160deg, #ffe9d6, #ffd9e6);
+    color: var(--brown);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100dvh; padding: 10px;
+  }
+
+  /* ── 키오스크 본체 ── */
+  #kiosk {
+    width: 100%; max-width: 900px; height: min(94dvh, 820px);
+    background: var(--cream);
+    border-radius: 28px;
+    box-shadow: 0 20px 50px rgba(107,74,54,0.28), inset 0 0 0 6px #fff;
+    display: flex; flex-direction: column; overflow: hidden;
+    position: relative;
+  }
+
+  /* ── 상단 헤더 ── */
+  header {
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    color: #fff; padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 14px rgba(255,111,165,0.35);
+    flex-shrink: 0;
+  }
+  header .logo { font-size: clamp(1.1rem, 3.5vw, 1.5rem); font-weight: 800; letter-spacing: -0.5px; }
+  header .logo small { font-weight: 500; opacity: 0.9; font-size: 0.65em; }
+  header .lang { font-size: 0.8rem; background: rgba(255,255,255,0.25); padding: 6px 12px; border-radius: 20px; }
+
+  /* ── 본문 레이아웃 ── */
+  #main { flex: 1; display: flex; min-height: 0; }
+
+  /* 메뉴 영역 */
+  #menuArea { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  #tabs {
+    display: flex; gap: 8px; padding: 12px 14px 4px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .tab {
+    border: none; background: #fff; color: var(--brown-soft);
+    padding: 8px 16px; border-radius: 20px; font-size: clamp(0.8rem, 2.6vw, 0.95rem);
+    font-weight: 700; cursor: pointer; box-shadow: var(--shadow); transition: transform .1s;
+  }
+  .tab.active { background: var(--brown); color: #fff; }
+  .tab:active { transform: scale(0.94); }
+
+  #menuGrid {
+    flex: 1; overflow-y: auto; padding: 12px 14px 20px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px; align-content: start;
+  }
+  .menu-card {
+    background: var(--card); border-radius: 18px; padding: 12px 8px;
+    text-align: center; cursor: pointer; box-shadow: var(--shadow);
+    transition: transform .12s; border: 2px solid transparent; position: relative;
+  }
+  .menu-card:active { transform: scale(0.93); }
+  .menu-card .emoji { font-size: clamp(2.2rem, 8vw, 3rem); display: block; line-height: 1.1; }
+  .menu-card .name { font-weight: 700; font-size: clamp(0.8rem, 2.6vw, 0.95rem); margin-top: 4px; }
+  .menu-card .price { color: var(--pink-deep); font-weight: 800; font-size: 0.85rem; margin-top: 2px; }
+  .menu-card .badge { position: absolute; top: 6px; right: 6px; background: var(--yellow);
+    color: var(--brown); font-size: 0.6rem; font-weight: 800; padding: 2px 6px; border-radius: 10px; }
+
+  /* 장바구니 */
+  #cart {
+    width: 290px; background: #fff; border-left: 3px dashed #f0d9c8;
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }
+  #cart h2 { padding: 14px 16px 8px; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; }
+  #cart h2 .count { background: var(--pink); color:#fff; font-size:0.75rem; padding:2px 9px; border-radius:12px; }
+  #cartItems { flex: 1; overflow-y: auto; padding: 4px 12px; }
+  #cartEmpty { text-align: center; color: #c9b4a5; padding: 40px 10px; font-size: 0.9rem; }
+  #cartEmpty .big { font-size: 3rem; display:block; margin-bottom: 8px; }
+  .cart-item { background: var(--cream); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .cart-item .row1 { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .cart-item .ci-name { font-weight: 700; font-size: 0.9rem; }
+  .cart-item .ci-opt { font-size: 0.72rem; color: var(--brown-soft); margin-top: 2px; }
+  .cart-item .ci-price { font-weight: 800; color: var(--pink-deep); font-size: 0.85rem; white-space: nowrap; }
+  .cart-item .qty { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .qty button { width: 26px; height: 26px; border: none; border-radius: 50%; background: var(--brown);
+    color: #fff; font-size: 1rem; font-weight: 800; cursor: pointer; line-height: 1; }
+  .qty button:active { transform: scale(0.9); }
+  .qty .num { font-weight: 800; min-width: 20px; text-align: center; }
+  .qty .del { margin-left: auto; background: none; color: #d99; font-size: 1.1rem; width: auto; }
+
+  #cartFooter { padding: 12px 16px 16px; border-top: 2px solid #f5e6da; flex-shrink: 0; }
+  #cartFooter .total { display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 800; margin-bottom: 10px; }
+  #cartFooter .total .amt { color: var(--pink-deep); }
+  .btn-pay {
+    width: 100%; padding: 14px; border: none; border-radius: 16px;
+    background: linear-gradient(135deg, var(--mint), #5fc4ad); color: #fff;
+    font-size: 1.05rem; font-weight: 800; cursor: pointer; box-shadow: 0 6px 16px rgba(95,196,173,0.4);
+  }
+  .btn-pay:active { transform: scale(0.97); }
+  .btn-pay:disabled { background: #d9d0c8; box-shadow: none; cursor: not-allowed; }
+  .btn-clear { width: 100%; padding: 8px; margin-top: 8px; border: none; background: none;
+    color: #bba; font-size: 0.8rem; cursor: pointer; }
+
+  /* ── 옵션/결제/영수증 모달 ── */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(60,40,30,0.5);
+    display: none; align-items: center; justify-content: center; padding: 16px; z-index: 20;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.show { display: flex; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: #fff; border-radius: 24px; width: 100%; max-width: 380px;
+    max-height: 90%; overflow-y: auto; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    animation: pop .25s cubic-bezier(.2,1.4,.5,1);
+  }
+  @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal .m-emoji { font-size: 3.4rem; text-align: center; display: block; }
+  .modal .m-name { text-align: center; font-size: 1.3rem; font-weight: 800; margin: 4px 0 2px; }
+  .modal .m-base { text-align: center; color: var(--brown-soft); margin-bottom: 14px; }
+  .opt-group { margin-bottom: 14px; }
+  .opt-group .label { font-weight: 700; font-size: 0.9rem; margin-bottom: 7px; }
+  .opt-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opt {
+    border: 2px solid #eee; background: #fafafa; border-radius: 14px; padding: 9px 14px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer; color: var(--brown-soft); transition: .1s;
+  }
+  .opt.sel { border-color: var(--pink-deep); background: #fff0f6; color: var(--pink-deep); }
+  .opt:active { transform: scale(0.93); }
+  .opt .add { font-size: 0.72rem; opacity: 0.8; }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button { flex: 1; padding: 13px; border: none; border-radius: 15px; font-size: 1rem; font-weight: 800; cursor: pointer; }
+  .btn-cancel { background: #f0eae4; color: var(--brown-soft); }
+  .btn-add { background: linear-gradient(135deg, var(--pink), var(--pink-deep)); color: #fff; }
+  .btn-add:active, .btn-cancel:active { transform: scale(0.96); }
+
+  /* 결제 방법 */
+  .pay-methods { display: flex; gap: 12px; margin: 16px 0; }
+  .pay-methods .pm { flex: 1; border: 2px solid #eee; border-radius: 18px; padding: 18px 6px;
+    text-align: center; cursor: pointer; font-weight: 700; }
+  .pay-methods .pm .ico { font-size: 2.2rem; display: block; }
+  .pay-methods .pm:active { transform: scale(0.95); }
+
+  /* 영수증 */
+  #receipt .r-paper {
+    background: #fffdf8; border-radius: 12px; padding: 18px; margin: 8px 0 4px;
+    font-family: "Courier New", monospace; box-shadow: inset 0 0 0 1px #eee;
+  }
+  #receipt .r-title { text-align: center; font-weight: 800; font-size: 1.1rem; }
+  #receipt .r-sub { text-align: center; font-size: 0.75rem; color: #999; margin-bottom: 8px; }
+  #receipt .r-line { border-top: 1px dashed #ccc; margin: 8px 0; }
+  #receipt .r-row { display: flex; justify-content: space-between; font-size: 0.82rem; margin: 3px 0; }
+  #receipt .r-total { display: flex; justify-content: space-between; font-weight: 800; font-size: 1rem; margin-top: 6px; }
+  #receipt .r-num { text-align: center; font-size: 2.2rem; font-weight: 800; color: var(--pink-deep); margin: 6px 0; }
+  #receipt .r-thanks { text-align: center; font-size: 0.85rem; color: var(--brown-soft); }
+
+  /* 토스트 */
+  #toast {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--brown); color: #fff; padding: 10px 20px; border-radius: 30px;
+    font-weight: 700; font-size: 0.9rem; opacity: 0; transition: .25s; pointer-events: none; z-index: 30;
+    box-shadow: var(--shadow);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 모바일: 장바구니를 하단 시트로 */
+  @media (max-width: 620px) {
+    #kiosk { height: 96dvh; }
+    #main { flex-direction: column; }
+    #cart {
+      width: 100%; border-left: none; border-top: 3px dashed #f0d9c8;
+      position: absolute; bottom: 0; left: 0; right: 0; height: 62%;
+      border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+      transform: translateY(calc(100% - 66px)); transition: transform .3s cubic-bezier(.2,.9,.3,1); z-index: 15;
+    }
+    #cart.open { transform: translateY(0); }
+    #cartHandle { display: flex; }
+    #menuArea { flex: 1; padding-bottom: 70px; }
+  }
+  #cartHandle {
+    display: none; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer; background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    color: #fff; border-radius: 24px 24px 0 0; font-weight: 800;
+  }
+  #cartHandle .grip { position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 4px; background: rgba(255,255,255,0.6); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="kiosk">
+  <header>
+    <div class="logo">🐱 야옹카페 <small>냥냥 키오스크</small></div>
+    <div class="lang">터치해서 주문하세요!</div>
+  </header>
+
+  <div id="main">
+    <div id="menuArea">
+      <div id="tabs"></div>
+      <div id="menuGrid"></div>
+    </div>
+
+    <div id="cart">
+      <div id="cartHandle">
+        <span class="grip"></span>
+        <span>🛒 장바구니 <span id="handleCount">0</span>개</span>
+        <span id="handleTotal">0원</span>
+      </div>
+      <h2>🛒 주문 내역 <span class="count" id="cartCount">0</span></h2>
+      <div id="cartItems">
+        <div id="cartEmpty"><span class="big">🍰</span>메뉴를 골라<br>담아보세요!</div>
+      </div>
+      <div id="cartFooter">
+        <div class="total"><span>합계</span><span class="amt" id="totalAmt">0원</span></div>
+        <button class="btn-pay" id="payBtn" disabled>결제하기</button>
+        <button class="btn-clear" id="clearBtn">전체 비우기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 옵션 선택 모달 -->
+  <div class="overlay" id="optOverlay">
+    <div class="modal" id="optModal"></div>
+  </div>
+
+  <!-- 결제 방법 모달 -->
+  <div class="overlay" id="payOverlay">
+    <div class="modal">
+      <span class="m-emoji">💳</span>
+      <div class="m-name">결제 방법 선택</div>
+      <div class="m-base" id="payAmount">0원</div>
+      <div class="pay-methods">
+        <div class="pm" data-method="카드"><span class="ico">💳</span>카드</div>
+        <div class="pm" data-method="현금"><span class="ico">💵</span>현금</div>
+        <div class="pm" data-method="상품권"><span class="ico">🎟️</span>상품권</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="payCancel">뒤로</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 영수증 모달 -->
+  <div class="overlay" id="receiptOverlay">
+    <div class="modal" id="receipt"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+// ── 메뉴 데이터 ──────────────────────────────────
+const MENU = {
+  "☕ 커피": [
+    { emoji: "☕", name: "아메리카노", price: 2500, temp: true },
+    { emoji: "🥛", name: "카페라떼",   price: 3500, temp: true },
+    { emoji: "🍫", name: "카페모카",   price: 4000, temp: true, badge: "인기" },
+    { emoji: "🍮", name: "카라멜마끼아또", price: 4500, temp: true },
+    { emoji: "🫖", name: "바닐라라떼", price: 4000, temp: true },
+    { emoji: "☕", name: "에스프레소", price: 2000, temp: false },
+  ],
+  "🧃 음료": [
+    { emoji: "🍓", name: "딸기라떼",   price: 4500, temp: true, badge: "신상" },
+    { emoji: "🍵", name: "녹차라떼",   price: 4000, temp: true },
+    { emoji: "🍋", name: "레몬에이드", price: 4000, temp: false },
+    { emoji: "🫐", name: "블루베리스무디", price: 5000, temp: false },
+    { emoji: "🍹", name: "복숭아아이스티", price: 3500, temp: false },
+    { emoji: "🥤", name: "초코쉐이크", price: 4800, temp: false },
+  ],
+  "🍰 디저트": [
+    { emoji: "🍰", name: "딸기케이크", price: 5500, temp: false },
+    { emoji: "🧇", name: "와플",       price: 4500, temp: false, badge: "인기" },
+    { emoji: "🍪", name: "초코쿠키",   price: 2000, temp: false },
+    { emoji: "🥐", name: "크루아상",   price: 3000, temp: false },
+    { emoji: "🍩", name: "도넛",       price: 2500, temp: false },
+    { emoji: "🧁", name: "컵케이크",   price: 3500, temp: false },
+  ],
+};
+
+// 옵션 정의
+const SIZES = [
+  { key: "S", label: "작은컵", add: 0 },
+  { key: "M", label: "보통컵", add: 500 },
+  { key: "L", label: "큰컵",   add: 1000 },
+];
+const EXTRAS = [
+  { key: "shot",   label: "샷추가",   add: 500,  emoji: "☕" },
+  { key: "syrup",  label: "시럽추가", add: 300,  emoji: "🍯" },
+  { key: "whip",   label: "휘핑크림", add: 500,  emoji: "🍦" },
+  { key: "pearl",  label: "펄추가",   add: 700,  emoji: "⚫" },
+];
+
+// ── 상태 ─────────────────────────────────────────
+let cart = [];
+let orderNo = Math.floor(Math.random() * 30) + 1;
+let editing = null;
+
+// ── DOM ──────────────────────────────────────────
+const tabsEl   = document.getElementById('tabs');
+const gridEl   = document.getElementById('menuGrid');
+const cartItemsEl = document.getElementById('cartItems');
+const optOverlay = document.getElementById('optOverlay');
+const optModal   = document.getElementById('optModal');
+const payOverlay = document.getElementById('payOverlay');
+const receiptOverlay = document.getElementById('receiptOverlay');
+const receiptEl  = document.getElementById('receipt');
+const toastEl    = document.getElementById('toast');
+const cartEl     = document.getElementById('cart');
+
+const won = n => n.toLocaleString('ko-KR') + "원";
+
+// ── 사운드 (Web Audio 삑) ────────────────────────
+let audioCtx = null;
+function beep(freq = 660, dur = 0.09, type = "sine", vol = 0.15) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+const dingUp   = () => { beep(880, 0.08); setTimeout(() => beep(1180, 0.1), 70); };
+const dingDone = () => { beep(660,0.1); setTimeout(()=>beep(880,0.1),110); setTimeout(()=>beep(1320,0.16),230); };
+
+// ── 탭 & 메뉴 렌더 ───────────────────────────────
+function renderTabs() {
+  const cats = Object.keys(MENU);
+  tabsEl.innerHTML = '';
+  cats.forEach((cat, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (i === 0 ? ' active' : '');
+    b.textContent = cat;
+    b.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      b.classList.add('active');
+      renderMenu(cat); beep(520, 0.05);
+    };
+    tabsEl.appendChild(b);
+  });
+  renderMenu(cats[0]);
+}
+
+function renderMenu(cat) {
+  gridEl.innerHTML = '';
+  MENU[cat].forEach(item => {
+    const c = document.createElement('div');
+    c.className = 'menu-card';
+    c.innerHTML = `
+      ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
+      <span class="emoji">${item.emoji}</span>
+      <div class="name">${item.name}</div>
+      <div class="price">${won(item.price)}</div>`;
+    c.onclick = () => { beep(700, 0.05); openOptions(item); };
+    gridEl.appendChild(c);
+  });
+}
+
+// ── 옵션 모달 ────────────────────────────────────
+function openOptions(item) {
+  editing = { item, size: SIZES[0], temp: item.temp ? "ICE" : null, extras: {} };
+  renderOptModal();
+  optOverlay.classList.add('show');
+}
+
+function renderOptModal() {
+  const { item, size, temp, extras } = editing;
+  const isDrink = item.temp || item.name.includes("에이드") || item.name.includes("스무디") ||
+                  item.name.includes("쉐이크") || item.name.includes("아이스티");
+
+  let html = `
+    <span class="m-emoji">${item.emoji}</span>
+    <div class="m-name">${item.name}</div>
+    <div class="m-base">기본 ${won(item.price)}</div>`;
+
+  // 온도 (temp:true 인 것만)
+  if (item.temp) {
+    html += `<div class="opt-group"><div class="label">🌡️ 온도</div><div class="opt-btns">
+      <div class="opt ${temp==='HOT'?'sel':''}" data-temp="HOT">🔥 따뜻하게</div>
+      <div class="opt ${temp==='ICE'?'sel':''}" data-temp="ICE">🧊 차갑게</div>
+    </div></div>`;
+  }
+
+  // 사이즈 (음료류만)
+  if (isDrink) {
+    html += `<div class="opt-group"><div class="label">🥤 사이즈</div><div class="opt-btns">` +
+      SIZES.map(s => `<div class="opt ${size.key===s.key?'sel':''}" data-size="${s.key}">
+        ${s.label}${s.add?`<div class="add">+${s.add}원</div>`:''}</div>`).join('') +
+      `</div></div>`;
+    // 추가옵션
+    html += `<div class="opt-group"><div class="label">➕ 추가 선택</div><div class="opt-btns">` +
+      EXTRAS.map(e => `<div class="opt ${extras[e.key]?'sel':''}" data-extra="${e.key}">
+        ${e.emoji} ${e.label}<div class="add">+${e.add}원</div></div>`).join('') +
+      `</div></div>`;
+  }
+
+  html += `
+    <div class="modal-actions">
+      <button class="btn-cancel" id="optCancel">취소</button>
+      <button class="btn-add" id="optAdd">담기 · ${won(calcItemPrice(editing))}</button>
+    </div>`;
+
+  optModal.innerHTML = html;
+
+  // 이벤트 연결
+  optModal.querySelectorAll('[data-temp]').forEach(el =>
+    el.onclick = () => { editing.temp = el.dataset.temp; beep(600,0.04); renderOptModal(); });
+  optModal.querySelectorAll('[data-size]').forEach(el =>
+    el.onclick = () => { editing.size = SIZES.find(s => s.key === el.dataset.size); beep(600,0.04); renderOptModal(); });
+  optModal.querySelectorAll('[data-extra]').forEach(el =>
+    el.onclick = () => { const k = el.dataset.extra; editing.extras[k] = !editing.extras[k]; beep(600,0.04); renderOptModal(); });
+  optModal.querySelector('#optCancel').onclick = () => optOverlay.classList.remove('show');
+  optModal.querySelector('#optAdd').onclick = addToCart;
+}
+
+function calcItemPrice(e) {
+  let p = e.item.price + (e.size ? e.size.add : 0);
+  for (const k in e.extras) if (e.extras[k]) p += EXTRAS.find(x => x.key === k).add;
+  return p;
+}
+
+function optionText(e) {
+  const parts = [];
+  if (e.temp) parts.push(e.temp === 'HOT' ? '따뜻' : '아이스');
+  const isDrink = e.item.temp || ['에이드','스무디','쉐이크','아이스티'].some(k => e.item.name.includes(k));
+  if (isDrink && e.size) parts.push(e.size.label);
+  for (const k in e.extras) if (e.extras[k]) parts.push(EXTRAS.find(x => x.key === k).label);
+  return parts.join(' · ') || '기본';
+}
+
+// ── 장바구니 ─────────────────────────────────────
+function addToCart() {
+  const e = editing;
+  const unit = calcItemPrice(e);
+  const optTxt = optionText(e);
+  // 같은 메뉴+옵션이면 수량 증가
+  const existing = cart.find(c => c.name === e.item.name && c.optTxt === optTxt);
+  if (existing) existing.qty++;
+  else cart.push({ emoji: e.item.emoji, name: e.item.name, optTxt, unit, qty: 1 });
+  optOverlay.classList.remove('show');
+  dingUp();
+  renderCart(true);
+  showToast(`${e.item.emoji} ${e.item.name} 담았어요!`);
+}
+
+function renderCart(bump) {
+  const count = cart.reduce((s, c) => s + c.qty, 0);
+  const total = cart.reduce((s, c) => s + c.unit * c.qty, 0);
+
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('totalAmt').textContent = won(total);
+  document.getElementById('handleCount').textContent = count;
+  document.getElementById('handleTotal').textContent = won(total);
+  document.getElementById('payBtn').disabled = count === 0;
+
+  if (cart.length === 0) {
+    cartItemsEl.innerHTML = `<div id="cartEmpty"><span class="big">🍰</span>메뉴를 골라<br>담아보세요!</div>`;
+    return;
+  }
+
+  cartItemsEl.innerHTML = cart.map((c, i) => `
+    <div class="cart-item">
+      <div class="row1">
+        <div>
+          <div class="ci-name">${c.emoji} ${c.name}</div>
+          <div class="ci-opt">${c.optTxt}</div>
+        </div>
+        <div class="ci-price">${won(c.unit * c.qty)}</div>
+      </div>
+      <div class="qty">
+        <button data-dec="${i}">−</button>
+        <span class="num">${c.qty}</span>
+        <button data-inc="${i}">+</button>
+        <button class="del" data-del="${i}">🗑️</button>
+      </div>
+    </div>`).join('');
+
+  cartItemsEl.querySelectorAll('[data-inc]').forEach(b =>
+    b.onclick = () => { cart[b.dataset.inc].qty++; beep(760,0.04); renderCart(); });
+  cartItemsEl.querySelectorAll('[data-dec]').forEach(b =>
+    b.onclick = () => { const i = b.dataset.dec; cart[i].qty--; if (cart[i].qty <= 0) cart.splice(i, 1); beep(440,0.04); renderCart(); });
+  cartItemsEl.querySelectorAll('[data-del]').forEach(b =>
+    b.onclick = () => { cart.splice(b.dataset.del, 1); beep(300,0.08); renderCart(); });
+}
+
+// ── 결제 ─────────────────────────────────────────
+document.getElementById('payBtn').onclick = () => {
+  if (cart.length === 0) return;
+  const total = cart.reduce((s, c) => s + c.unit * c.qty, 0);
+  document.getElementById('payAmount').textContent = won(total) + " 결제";
+  payOverlay.classList.add('show');
+  beep(700, 0.06);
+};
+document.getElementById('payCancel').onclick = () => payOverlay.classList.remove('show');
+document.querySelectorAll('.pm').forEach(pm =>
+  pm.onclick = () => { payOverlay.classList.remove('show'); showReceipt(pm.dataset.method); });
+
+function showReceipt(method) {
+  const total = cart.reduce((s, c) => s + c.unit * c.qty, 0);
+  const count = cart.reduce((s, c) => s + c.qty, 0);
+  orderNo++;
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  receiptEl.innerHTML = `
+    <div class="r-paper">
+      <div class="r-title">🐱 야옹카페</div>
+      <div class="r-sub">주문해 주셔서 고마워요!</div>
+      <div class="r-line"></div>
+      ${cart.map(c => `
+        <div class="r-row"><span>${c.name} ${c.qty>1?'x'+c.qty:''}</span><span>${won(c.unit*c.qty)}</span></div>
+        ${c.optTxt!=='기본'?`<div class="r-row" style="color:#aaa;font-size:0.72rem"><span>└ ${c.optTxt}</span><span></span></div>`:''}
+      `).join('')}
+      <div class="r-line"></div>
+      <div class="r-row"><span>총 수량</span><span>${count}개</span></div>
+      <div class="r-row"><span>결제수단</span><span>${method}</span></div>
+      <div class="r-total"><span>합계</span><span>${won(total)}</span></div>
+      <div class="r-line"></div>
+      <div class="r-sub">주문번호</div>
+      <div class="r-num">${orderNo}번</div>
+      <div class="r-thanks">진동벨이 울리면 찾아가세요 🔔<br>${time}</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-add" id="newOrder">새 주문 하기 🎉</button>
+    </div>`;
+
+  receiptOverlay.classList.add('show');
+  dingDone();
+  document.getElementById('newOrder').onclick = () => {
+    cart = [];
+    renderCart();
+    receiptOverlay.classList.remove('show');
+    if (cartEl.classList.contains('open')) cartEl.classList.remove('open');
+    beep(800, 0.08);
+    showToast('새 주문을 시작해요! ☕');
+  };
+}
+
+// ── 전체 비우기 ──────────────────────────────────
+document.getElementById('clearBtn').onclick = () => {
+  if (cart.length === 0) return;
+  cart = []; renderCart(); beep(300, 0.12);
+  showToast('장바구니를 비웠어요');
+};
+
+// ── 토스트 ───────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+}
+
+// ── 모바일 장바구니 시트 토글 ────────────────────
+document.getElementById('cartHandle').onclick = () => cartEl.classList.toggle('open');
+
+// 오버레이 바깥 클릭 닫기
+[optOverlay, payOverlay].forEach(ov =>
+  ov.onclick = e => { if (e.target === ov) ov.classList.remove('show'); });
+
+// ── 시작 ─────────────────────────────────────────
+renderTabs();
+renderCart();
+</script>
+</body>
+</html>
